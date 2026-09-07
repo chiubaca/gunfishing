@@ -1,0 +1,495 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PROTOTYPE - Dual-camera transition / Three.js</title>
+  <style>
+    :root { color-scheme: dark; --ink:#d8e6d7; --muted:#7f9b91; --line:rgba(152,202,181,.2); --accent:#84f0c3; --hot:#ff6b3d; --warning:#ffc45b; --mono:Consolas,"Liberation Mono",monospace; --display:Georgia,"Times New Roman",serif; }
+    * { box-sizing:border-box; }
+    body { margin:0; padding:24px 24px 108px; background:radial-gradient(circle at 14% 0%,#12342c55,transparent 36rem),#030a0b; color:var(--ink); font-family:var(--mono); }
+    button { font:inherit; cursor:pointer; }
+    .shell { width:min(1500px,100%); margin:auto; }
+    .prototype-flag { color:var(--warning); font-size:11px; font-weight:bold; letter-spacing:.16em; text-transform:uppercase; }
+    .page-header { display:grid; grid-template-columns:minmax(0,1fr) minmax(280px,520px); gap:40px; align-items:end; margin:12px 0 20px; }
+    h1 { margin:10px 0 0; font:400 clamp(35px,5vw,72px)/.93 var(--display); letter-spacing:-.045em; }
+    .thesis { margin:0; padding-left:20px; border-left:1px solid var(--accent); color:#aec2b8; font-size:13px; line-height:1.65; }
+    .workspace { display:grid; grid-template-columns:minmax(0,1fr) 340px; border:1px solid var(--line); background:#071011; box-shadow:0 26px 80px #0007; }
+    .stage { position:relative; min-width:0; min-height:720px; overflow:hidden; background:#071b1d; isolation:isolate; }
+    #scene { position:absolute; inset:0; width:100%; height:100%; touch-action:none; cursor:crosshair; }
+    .stage::after { position:absolute; inset:0; z-index:8; border:1px solid #d8e6d714; box-shadow:inset 0 0 80px #0004; content:""; pointer-events:none; }
+    .mode-band { position:absolute; top:22px; left:24px; z-index:12; display:flex; align-items:center; gap:12px; text-shadow:0 2px 9px #000; pointer-events:none; }
+    .mode-name { font:25px var(--display); }
+    .mode-status { padding:5px 8px; border:1px solid var(--accent); color:var(--accent); font-size:9px; text-transform:uppercase; }
+    .threat-readout { position:absolute; top:24px; right:24px; z-index:12; width:180px; pointer-events:none; }
+    .threat-copy { display:flex; justify-content:space-between; margin-bottom:7px; font-size:10px; text-transform:uppercase; text-shadow:0 2px 8px #000; }
+    .threat-meter { display:grid; grid-template-columns:repeat(8,1fr); gap:3px; height:7px; }
+    .threat-meter span { border:1px solid #ffc45b55; background:#081010b3; }
+    .threat-meter span.on { border-color:var(--warning); background:var(--warning); }
+    .danger-message { position:absolute; top:18%; left:50%; z-index:14; width:max-content; max-width:80%; padding:8px 12px; border-block:1px solid var(--hot); color:#ffd6c8; background:#400e057a; font-size:10px; letter-spacing:.12em; text-align:center; text-transform:uppercase; transform:translateX(-50%); opacity:0; pointer-events:none; }
+    .visible { opacity:1 !important; }
+    .reticle { position:absolute; top:var(--y,50%); left:var(--x,50%); z-index:13; width:34px; height:34px; border:1px solid #d8e6d7; border-radius:50%; filter:drop-shadow(0 2px 5px #000); transform:translate(-50%,-50%); opacity:0; pointer-events:none; }
+    .reticle::before,.reticle::after { position:absolute; top:50%; left:50%; background:#d8e6d7; content:""; transform:translate(-50%,-50%); }
+    .reticle::before { width:46px; height:1px; } .reticle::after { width:1px; height:46px; }
+    .reticle.locked { border-color:var(--hot); box-shadow:0 0 16px #ff6b3d66; }
+    .catch-callout { position:absolute; left:50%; bottom:112px; z-index:12; display:grid; gap:5px; min-width:220px; padding:10px 14px; border:1px solid #84f0c355; background:#040e0ebe; text-align:center; transform:translateX(-50%); pointer-events:none; }
+    .catch-callout strong { color:var(--accent); font-size:10px; text-transform:uppercase; }
+    .catch-callout span { color:#8fab9f; font-size:10px; } .hidden { opacity:0; }
+    .stage-controls { position:absolute; right:22px; bottom:32px; left:22px; z-index:20; display:flex; gap:8px; }
+    .stage-controls button { min-height:48px; padding:10px 14px; border:1px solid #d8e6d740; color:#ceded4; background:#050e0ee0; font-size:10px; font-weight:bold; text-transform:uppercase; }
+    button:hover { border-color:var(--accent); color:#fff; } button:disabled { cursor:not-allowed; opacity:.35; }
+    .stage-controls .primary { flex:1; border-color:var(--hot); color:#fff4ee; background:#691a07c7; }
+    .key { display:inline-block; margin-left:8px; padding:2px 5px; border:1px solid currentColor; opacity:.68; }
+    .instrument-panel { border-left:1px solid var(--line); background:#061212ed; }
+    .variant-card,.state-card,.timeline-card,.log-card { padding:20px; border-bottom:1px solid var(--line); }
+    .eyebrow { display:block; margin-bottom:8px; color:var(--accent); font-size:9px; letter-spacing:.16em; text-transform:uppercase; }
+    h2 { margin:0 0 10px; font:400 30px/1 var(--display); }
+    .variant-card p { margin:0; color:#8ea69c; font-size:11px; line-height:1.55; }
+    dl { display:grid; margin:0; } dl div { display:grid; grid-template-columns:1fr minmax(90px,1.35fr); gap:14px; padding:8px 0; border-bottom:1px solid #98cab514; }
+    dt { color:#7f9b91; font-size:9px; text-transform:uppercase; } dd { margin:0; font-size:10px; text-align:right; } .state-list dd { color:var(--accent); }
+    .section-title { display:flex; justify-content:space-between; margin:0 0 14px; color:#b9ccc1; font-size:10px; text-transform:uppercase; }
+    .timeline { position:relative; height:45px; margin-top:6px; border-top:1px solid #d8e6d742; }
+    .timeline-marker,.timeline-cursor { position:absolute; top:-4px; width:1px; height:11px; background:#698178; }
+    .timeline-marker span { position:absolute; top:15px; left:4px; width:80px; color:#7f9b91; font-size:8px; }
+    .timeline-marker.right span { right:4px; left:auto; text-align:right; } .timeline-cursor { top:-7px; height:18px; background:var(--hot); }
+    .log-card { min-height:175px; border:0; } .event-log { display:grid; gap:8px; margin:0; padding:0; list-style:none; }
+    .event-log li { display:grid; grid-template-columns:48px 1fr; gap:10px; color:#95aca1; font-size:9px; line-height:1.4; } time { color:#718b80; }
+    #resetButton { border:0; padding:0; background:none; color:#718b80; }
+    .switcher { position:fixed; bottom:22px; left:50%; z-index:100; display:grid; grid-template-columns:48px minmax(230px,auto) 48px; border:1px solid #d8e6d757; border-radius:4px; background:#020809f5; box-shadow:0 14px 42px #000a; transform:translateX(-50%); }
+    .switcher button { border:0; color:var(--accent); background:transparent; font-size:18px; }
+    .switcher-label { display:grid; min-height:52px; place-content:center; padding:7px 18px; border-inline:1px solid #d8e6d729; text-align:center; }
+    .switcher-label small { color:#7f9b91; font-size:8px; text-transform:uppercase; } .switcher-label strong { margin-top:2px; font:400 15px var(--display); }
+    #flash { position:absolute; inset:0; z-index:15; background:#ffd6be; opacity:0; pointer-events:none; }
+    .edge-warning { position:absolute; z-index:11; font-size:26px; font-weight:bold; text-shadow:0 2px 6px #000; pointer-events:none; }
+    body[data-variant="b"] { --accent:#9ed8ff; --warning:#fae088; }
+    body[data-variant="b"] .mode-band { top:auto; bottom:94px; left:50%; flex-direction:column; gap:5px; transform:translateX(-50%); }
+    body[data-variant="b"] .mode-status { border:0; padding:0; }
+    body[data-variant="b"] .threat-readout { right:auto; left:24px; width:220px; }
+    body[data-variant="b"] .threat-meter { height:3px; }
+    body[data-variant="b"] .catch-callout { top:25px; bottom:auto; }
+    body[data-variant="b"] .reticle { width:62px; height:62px; border-style:dashed; }
+    body[data-variant="c"] { --accent:#ffb48e; --warning:#ff6b3d; }
+    body[data-variant="c"] .mode-band { top:50%; left:22px; transform:translateY(-50%) rotate(-90deg); transform-origin:left top; }
+    body[data-variant="c"] .mode-status { display:none; }
+    body[data-variant="c"] .threat-readout { width:112px; }
+    body[data-variant="c"] .threat-copy span:first-child { display:none; }
+    body[data-variant="c"] .threat-meter { grid-template-columns:repeat(4,1fr); }
+    body[data-variant="c"] .threat-meter span:nth-child(n+5) { display:none; }
+    body[data-variant="c"] .catch-callout { border-color:var(--hot); border-radius:50%; min-width:150px; min-height:150px; place-content:center; }
+    body[data-variant="c"] .reticle { width:18px; height:18px; border:0; }
+    body[data-variant="c"] .reticle::before { width:62px; } body[data-variant="c"] .reticle::after { height:62px; }
+    @media(max-width:980px) { body { padding:16px 16px 104px; } .page-header { grid-template-columns:1fr; gap:18px; } .workspace { grid-template-columns:1fr; } .stage { min-height:640px; } .instrument-panel { border-top:1px solid var(--line); border-left:0; } }
+    @media(max-width:580px) { body { padding:12px 12px 100px; } h1 { font-size:39px; } .thesis { font-size:11px; } .stage { min-height:560px; } .threat-readout { top:18px; right:16px; width:130px; } .mode-band { top:16px; left:16px; } .mode-name { font-size:18px; } .mode-status { display:none; } .stage-controls { right:12px; bottom:16px; left:12px; display:grid; grid-template-columns:repeat(3,1fr); } .stage-controls .primary { grid-column:1/-1; } .key { display:none; } .catch-callout { bottom:145px; min-width:180px; } body[data-variant="b"] .mode-band { bottom:134px; } body[data-variant="b"] .catch-callout { top:65px; } .switcher { bottom:14px; grid-template-columns:42px minmax(190px,auto) 42px; } }
+    .mobile-keypad { display:none; }
+    @media (pointer:coarse), (max-width:580px) {
+      .mobile-keypad { position:absolute; z-index:21; left:12px; right:12px; bottom:140px; display:flex; justify-content:space-between; align-items:end; pointer-events:none; }
+      .aim-pad { display:grid; grid-template-columns:repeat(3,44px); grid-template-rows:repeat(3,44px); gap:3px; }
+      .mobile-keypad button { pointer-events:auto; touch-action:none; user-select:none; min-width:44px; min-height:44px; border:1px solid #84f0c380; background:#061212e8; color:#d8e6d7; font:inherit; }
+      .mobile-keypad button:active { background:#326451; }
+      .mobile-keypad button:disabled { opacity:.35; }
+      .aim-pad span { display:grid; place-items:center; font-size:10px; background:#061212b0; }
+      #fireButton { width:72px; height:72px; border-radius:50%; border-color:var(--hot); }
+      .catch-callout { bottom:290px; }
+    }
+  </style>
+</head>
+<body data-variant="a">
+  <!-- Disposable camera experiment. No production assets, persistence, or build runtime. -->
+  <div class="shell">
+    <span class="prototype-flag">Throwaway interaction prototype / Three.js</span>
+    <header class="page-header"><h1>From quiet water to teeth.</h1><p class="thesis" id="thesis"></p></header>
+    <main class="workspace">
+      <section class="stage" id="stage" aria-label="Interactive 3D camera transition simulation">
+        <canvas id="scene" aria-label="3D fishing and Gunfish combat"></canvas>
+        <div class="mode-band"><span class="mode-name" id="modeName">Fishing mode</span><span class="mode-status" id="modeStatus">Rod ready</span></div>
+        <div class="threat-readout"><div class="threat-copy"><span>Threat pressure</span><span id="threatNumber">5 / 8</span></div><div class="threat-meter" id="threatMeter"></div></div>
+        <div class="danger-message" id="dangerMessage"></div><div class="reticle" id="reticle"></div><div id="flash"></div>
+        <div class="catch-callout" id="catchCallout"><strong id="catchTitle">Water is open</strong><span id="catchHint">Click water or press F to cast</span></div>
+        <div class="mobile-keypad" aria-label="Mobile controls">
+          <div class="aim-pad" role="group" aria-label="Aim directional pad">
+            <button style="grid-column:2" data-aim="0,-1" aria-label="Aim up">&uarr;</button>
+            <button style="grid-column:1;grid-row:2" data-aim="-1,0" aria-label="Aim left">&larr;</button>
+            <span style="grid-column:2;grid-row:2">AIM</span>
+            <button style="grid-column:3;grid-row:2" data-aim="1,0" aria-label="Aim right">&rarr;</button>
+            <button style="grid-column:2;grid-row:3" data-aim="0,1" aria-label="Aim down">&darr;</button>
+          </div>
+          <button id="fireButton">Fire</button>
+        </div>
+        <div class="stage-controls">
+          <button class="primary" id="modeButton">Draw Gunfish <span class="key">Space</span></button>
+          <button id="castButton">Cast <span class="key">F</span></button><button id="cancelButton">Cancel <span class="key">C</span></button><button id="dangerButton">More danger <span class="key">T</span></button>
+        </div>
+      </section>
+      <aside class="instrument-panel">
+        <section class="variant-card"><span class="eyebrow" id="variantKey">Variant A</span><h2 id="variantName">Threat-lock arc</h2><p id="variantSummary"></p></section>
+        <section class="state-card"><h3 class="section-title"><span>Candidate rule set</span><span>Design</span></h3><dl>
+          <div><dt>Camera</dt><dd id="specCamera"></dd></div><div><dt>Orientation</dt><dd id="specOrientation"></dd></div><div><dt>Cancel point</dt><dd id="specCancel"></dd></div><div><dt>Aim / fire</dt><dd id="specInput"></dd></div><div><dt>Danger</dt><dd id="specDanger"></dd></div>
+        </dl></section>
+        <section class="state-card"><h3 class="section-title"><span>Live state</span><span id="clock">0 ms</span></h3><dl class="state-list">
+          <div><dt>Mode</dt><dd id="stateMode">Fishing</dd></div><div><dt>Camera</dt><dd id="stateCamera">Top-down</dd></div><div><dt>Catch</dt><dd id="stateCatch">Idle</dd></div><div><dt>Control</dt><dd id="stateControl">Rod</dd></div><div><dt>Target</dt><dd id="stateTarget">None</dd></div><div><dt>World speed</dt><dd id="stateSpeed">100%</dd></div>
+        </dl></section>
+        <section class="timeline-card"><h3 class="section-title"><span>Transition timing</span><span id="durationLabel">420 ms</span></h3><div class="timeline" id="timeline"></div></section>
+        <section class="log-card"><h3 class="section-title"><span>Interaction log</span><button id="resetButton">Reset R</button></h3><ol class="event-log" id="eventLog"></ol></section>
+      </aside>
+    </main>
+  </div>
+  <nav class="switcher" aria-label="Prototype variants"><button id="previousVariant" aria-label="Previous variant">&larr;</button><div class="switcher-label"><small>Prototype variant</small><strong id="switcherLabel">A - Threat-lock arc</strong></div><button id="nextVariant" aria-label="Next variant">&rarr;</button></nav>
+  <script type="module">
+    import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js";
+
+    const ui = Object.fromEntries([...document.querySelectorAll("[id]")].map(node => [node.id, node]));
+    const variants = [
+      { id:"a", name:"Threat-lock arc", duration:420, aimAt:120, fireAt:260,
+        thesis:"Test whether a fast, continuous camera arc preserves spatial understanding by handing the player one explicit threat to face.",
+        summary:"Orbit behind the highest-threat living monster's bearing. Real-time movement continues; a world-space bearing ring retains the lock.",
+        camera:"420 ms eased orbit", orientation:"Face highest Threat", cancel:"Input frame (0 ms)", input:"Aim 120 / fire 260 ms", danger:"Bearing ring + target lock" },
+      { id:"b", name:"Tactical dip", duration:680, aimAt:0, fireAt:460,
+        thesis:"Test whether a slower transition feels safer when the player keeps their chosen bearing and can read incoming lanes.",
+        summary:"Hold overhead for 100 ms, then dip for 580 ms without changing heading. The whole simulation runs at 35% during the draw; attack lanes persist.",
+        camera:"100 ms hold + 580 ms dip", orientation:"Preserve cast bearing", cancel:"Input frame; line lingers 100 ms", input:"Aim live / fire 460 ms", danger:"35% world + attack lanes" },
+      { id:"c", name:"Matched hard cut", duration:140, aimAt:0, fireAt:0,
+        thesis:"Test the speed-first extreme: preserve facing, cut straight to the shoulder, and trust edge warnings instead of camera choreography.",
+        summary:"Cut to the shoulder on the input frame, masked by a 140 ms flash. Aim and fire are immediate; no target is selected. Edge chevrons locate off-screen monsters.",
+        camera:"Instant cut / 140 ms flash", orientation:"Keep character facing", cancel:"Input frame (0 ms)", input:"Aim + fire immediate", danger:"Edge chevrons + hit pulse" }
+    ];
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x10292e);
+    scene.fog = new THREE.Fog(0x10292e, 25, 85);
+    const renderer = new THREE.WebGLRenderer({ canvas:ui.scene, antialias:true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    const camera = new THREE.PerspectiveCamera(52, 1, .08, 140);
+    scene.add(new THREE.HemisphereLight(0xc5e9ff, 0x304d31, 2.4));
+    const sun = new THREE.DirectionalLight(0xffcf91, 3.2);
+    sun.position.set(-12, 24, 8); sun.castShadow = true;
+    sun.shadow.mapSize.set(1024, 1024);
+    Object.assign(sun.shadow.camera, { left:-24, right:24, top:24, bottom:-24, far:70 });
+    scene.add(sun);
+    const solid = [];
+    function mesh(geometry, color, parent, x=0, y=0, z=0) {
+      const object = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color, roughness:.75, flatShading:true }));
+      object.position.set(x,y,z); object.castShadow = true; object.receiveShadow = true;
+      parent.add(object); return object;
+    }
+    function box(w,h,d,color,parent,x,y,z) { return mesh(new THREE.BoxGeometry(w,h,d),color,parent,x,y,z); }
+    const water = mesh(new THREE.PlaneGeometry(120,120,48,48),0x175b62,scene,0,0,0);
+    water.rotation.x = -Math.PI/2; water.castShadow = false;
+    water.material.roughness = .28; water.material.metalness = .32;
+    const shore = box(80,.8,36,0x6c7957,scene,0,-.15,22); solid.push(shore);
+    const dock = box(3.1,.35,8,0x6a4931,scene,0,.22,1.3); solid.push(dock);
+    for(let i=0;i<16;i++) box(3.15,.045,.055,0xb69b67,scene,0,.42,-2.4+i*.48);
+    for(const x of [-1.35,1.35]) for(const z of [-2,1,4]) {
+      const post = mesh(new THREE.CylinderGeometry(.12,.16,1.8,7),0x493a29,scene,x,.1,z); solid.push(post);
+    }
+    // Asymmetric landmarks remain in the same world positions across all camera poses.
+    const tower = new THREE.Group(); scene.add(tower); tower.position.set(-11,0,-12);
+    solid.push(mesh(new THREE.CylinderGeometry(.8,1.4,7,8),0xb4b6a3,tower,0,3.5,0));
+    mesh(new THREE.ConeGeometry(1.35,1.5,8),0xf17c43,tower,0,7.75,0);
+    mesh(new THREE.SphereGeometry(.35,12,8),0xffd77e,tower,0,6.6,-.8).material.emissive.set(0xffa030);
+    const arch = new THREE.Group(); scene.add(arch); arch.position.set(10,0,-8);
+    solid.push(box(1.4,4,1.6,0x657d79,arch,-2,2,0),box(1.4,4,1.6,0x657d79,arch,2,2,0),box(5.8,1.1,1.8,0x8ba49b,arch,0,4.3,0));
+    for(let i=0;i<12;i++) {
+      const x = Math.sin(i*2.4)*23, z = 7+(i%4)*5;
+      solid.push(mesh(new THREE.CylinderGeometry(.2,.4,3,6),0x493d2b,scene,x,1.5,z));
+      solid.push(mesh(new THREE.ConeGeometry(1.6,4,7),0x244d3c,scene,x,4,z));
+    }
+    const buoy = new THREE.Group(); scene.add(buoy); buoy.position.set(5,0,-13);
+    mesh(new THREE.ConeGeometry(.65,1.2,8),0xf6b743,buoy,0,.5,0);
+    box(.06,2,.06,0xe0ddd1,buoy,0,1.2,0); box(.7,.45,.05,0xff6b3d,buoy,.35,1.9,0);
+    const player = new THREE.Group(); scene.add(player); player.position.y = .43;
+    box(.58,.8,.38,0x34483d,player,0,.95,0);
+    mesh(new THREE.SphereGeometry(.24,12,8),0xe3c295,player,0,1.61,0);
+    mesh(new THREE.CylinderGeometry(.36,.36,.14,12),0xc8b47b,player,0,1.8,0);
+    for(const x of [-.18,.18]) box(.2,.55,.23,0x1b2827,player,x,.28,0);
+    const weapon = new THREE.Group(); player.add(weapon); weapon.position.set(.42,1.1,-.3);
+    const fish = mesh(new THREE.SphereGeometry(.27,12,8),0x84f0c3,weapon,0,0,-.25); fish.scale.set(.8,.85,2.3);
+    mesh(new THREE.ConeGeometry(.28,.35,3),0x308f86,weapon,0,0,.4).rotation.x = Math.PI/2;
+    box(.13,.13,.38,0x253f3c,weapon,0,0,-.86);
+    mesh(new THREE.SphereGeometry(.05,8,6),0xffd976,weapon,.2,.08,-.48);
+    const muzzle = new THREE.Object3D(); muzzle.position.z = -1.08; weapon.add(muzzle);
+    const rod = mesh(new THREE.CylinderGeometry(.025,.045,2.6,6),0xdac491,player,.4,1.35,-1);
+    rod.rotation.x = -Math.PI/3;
+    const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3()]),new THREE.LineBasicMaterial({ color:0xe1f2d9 })); scene.add(line);
+    const bobber = mesh(new THREE.SphereGeometry(.12,10,8),0xffb44f,scene);
+    const tracer = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3()]),new THREE.LineBasicMaterial({ color:0xffe0a0 })); scene.add(tracer); tracer.visible = false;
+    const ring = mesh(new THREE.TorusGeometry(1.9,.035,6,64),0xff6b3d,scene,0,.49,0); ring.rotation.x = -Math.PI/2;
+    const bearing = new THREE.ArrowHelper(new THREE.Vector3(0,0,-1),new THREE.Vector3(0,.5,0),3,0xff6b3d,.5,.3); scene.add(bearing);
+    const enemySeeds = [
+      { name:"Mirejaw", angle:-.7, distance:7.7, danger:8, color:0xff6b3d },
+      { name:"Needler", angle:1.02, distance:10.2, danger:6, color:0xffc45b },
+      { name:"Skulker", angle:2.65, distance:8.8, danger:4, color:0xff9875 },
+      { name:"Siltback", angle:-2.28, distance:12.4, danger:3, color:0xd27959 }
+    ];
+    const enemies = enemySeeds.map(seed => {
+      const group = new THREE.Group(); scene.add(group);
+      const body = mesh(new THREE.IcosahedronGeometry(.68,1),seed.color,group,0,.65,0); body.scale.set(1, .7, 1.6);
+      for(const x of [-.48,.48]) {
+        mesh(new THREE.SphereGeometry(.12,8,6),0xffe99f,group,x,.87,-.65).material.emissive.set(0xff7020);
+        for(const z of [-.35,.4]) box(.18,.5,.6,0x302f27,group,x,.22,z);
+      }
+      for(let i=0;i<4;i++) mesh(new THREE.ConeGeometry(.15,.55,4),0xe6d1a0,group,0,1.15,-.6+i*.4);
+      const lane = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3()]),new THREE.LineBasicMaterial({ color:seed.color, transparent:true, opacity:.65 })); scene.add(lane);
+      const warning = document.createElement("div"); warning.className = "edge-warning"; warning.textContent = ">"; warning.style.color = `#${seed.color.toString(16)}`; ui.stage.append(warning);
+      const enemy = { ...seed, group, lane, warning, alive:true };
+      group.traverse(object => { if(object.isMesh) object.userData.enemy = enemy; });
+      return enemy;
+    });
+    const raycaster = new THREE.Raycaster();
+    let variant, state, lastFrame = performance.now();
+    const smooth = t => { t = THREE.MathUtils.clamp(t,0,1); return t*t*(3-2*t); };
+    const direction = heading => new THREE.Vector3(Math.sin(heading),0,-Math.cos(heading));
+    const headingTo = point => Math.atan2(point.x,-point.z);
+    const angleMix = (a,b,t) => a + Math.atan2(Math.sin(b-a),Math.cos(b-a))*t;
+    function timing(now) {
+      const transition = state.transition;
+      if(!transition) return { elapsed:0, p:state.mode === "combat" ? 1 : 0 };
+      const elapsed = Math.max(0,now-transition.started);
+      const progress = variant.id === "c" ? 1 : smooth((elapsed-(variant.id === "b" ? 100 : 0))/(transition.duration-(variant.id === "b" ? 100 : 0)));
+      return { elapsed, p:transition.to === "combat" ? progress : 1-progress };
+    }
+    function combatIntent() { return state.transition ? state.transition.to === "combat" : state.mode === "combat"; }
+    function aimLive(now) { return combatIntent() && (!state.transition || now-state.transition.started >= variant.aimAt); }
+    function log(message) {
+      state.events.unshift({ elapsed:Math.round(performance.now()-state.started), message }); state.events.length = Math.min(state.events.length,6);
+      ui.eventLog.replaceChildren(...state.events.map(event => {
+        const li = document.createElement("li"), time = document.createElement("time"), text = document.createElement("span");
+        time.textContent = `${event.elapsed}ms`; text.textContent = event.message; li.append(time,text); return li;
+      }));
+    }
+    function updateEnemies() {
+      enemies.forEach(enemy => {
+        enemy.group.visible = enemy.alive;
+        enemy.group.position.copy(direction(enemy.angle).multiplyScalar(enemy.distance));
+        enemy.group.position.y = (enemy.group.position.z > 4 ? .25 : 0) + Math.sin(state.worldTime*3+enemy.angle)*.08;
+        enemy.group.rotation.y = -enemy.angle + Math.PI;
+        enemy.lane.geometry.setFromPoints([enemy.group.position.clone().setY(.5),new THREE.Vector3(0,.5,0)]);
+      });
+    }
+    function reset() {
+      const now = performance.now();
+      state = { mode:"fishing", transition:null, catchState:"idle", castPoint:new THREE.Vector3(3,0,-6), catchStarted:0, canceledAt:-Infinity, heading:0, combatHeading:0, aim:new THREE.Vector2(.65,.36), target:null, lock:null, threat:5, pendingFire:false, firedAt:-Infinity, hitAt:-Infinity, worldTime:0, speed:1, started:now, events:[] };
+      enemies.forEach((enemy,i) => { Object.assign(enemy,enemySeeds[i],{alive:true}); enemy.warning.hidden = true; });
+      tracer.visible = false; line.visible = false; bobber.visible = false; weapon.rotation.set(0,0,0); lastFrame = now;
+      updateEnemies(); updateCamera(now); log("Reset world, enemies and rod"); updateInterface(now);
+    }
+    function setVariant(id, writeUrl=true) {
+      variant = variants.find(candidate => candidate.id === id) || variants[1];
+      if(writeUrl) { const url = new URL(location.href); url.searchParams.set("variant",variant.id); history.replaceState({},"",url); }
+      document.body.dataset.variant = variant.id;
+      ui.thesis.textContent = variant.thesis; ui.variantKey.textContent = `Variant ${variant.id.toUpperCase()}`;
+      ui.variantName.textContent = variant.name; ui.variantSummary.textContent = variant.summary;
+      for(const key of ["camera","orientation","cancel","input","danger"]) ui[`spec${key[0].toUpperCase()+key.slice(1)}`].textContent = variant[key];
+      ui.durationLabel.textContent = `${variant.duration} ms`; ui.switcherLabel.textContent = `${variant.id.toUpperCase()} - ${variant.name}`;
+      ui.timeline.replaceChildren();
+      const markers = new Map();
+      for(const [at,label] of [[0,"Cancel"],[variant.aimAt,"Aim"],[variant.fireAt,"Fire"],[variant.duration,"Set"]]) markers.set(at,[...(markers.get(at)||[]),label]);
+      for(const [at,labels] of markers) {
+        const marker = document.createElement("div"), label = document.createElement("span");
+        marker.className = `timeline-marker${at/variant.duration > .75 ? " right" : ""}`; marker.style.left = `${Math.min(98,at/variant.duration*100)}%`;
+        label.textContent = `${labels.join(" + ")} ${at} ms`; marker.append(label); ui.timeline.append(marker);
+      }
+      ui.timelineCursor = document.createElement("div"); ui.timelineCursor.className = "timeline-cursor"; ui.timeline.append(ui.timelineCursor); reset();
+    }
+    function cycleVariant(step) { setVariant(variants[(variants.indexOf(variant)+step+3)%3].id); }
+    function updateCamera(now) {
+      const { p } = timing(now);
+      const heading = variant.id === "a" ? angleMix(state.heading,state.combatHeading,p) : state.combatHeading;
+      const forward = direction(heading), right = new THREE.Vector3(Math.cos(heading),0,Math.sin(heading));
+      // One perspective camera travels around the player, not between screen-space drawings.
+      // B keeps an elevated, angled fishing view so the character and scenery have visible depth.
+      camera.position.copy(forward.clone().multiplyScalar(-THREE.MathUtils.lerp(variant.id === "b" ? 14 : .15,3.4,p)));
+      camera.position.addScaledVector(right,.85*p); camera.position.y = THREE.MathUtils.lerp(variant.id === "b" ? 20 : 23,2.5,p);
+      camera.up.set(0,1,0);
+      camera.lookAt(forward.clone().multiplyScalar(THREE.MathUtils.lerp(.2,7,p)).setY(THREE.MathUtils.lerp(0,1.2,p)));
+      camera.fov = THREE.MathUtils.lerp(52,66,p); camera.updateProjectionMatrix(); camera.updateMatrixWorld(true);
+      player.rotation.y = -angleMix(state.heading,state.combatHeading,p);
+      weapon.visible = combatIntent(); rod.visible = !combatIntent(); scene.updateMatrixWorld(true);
+    }
+    function pick(point=state.aim) {
+      raycaster.setFromCamera(new THREE.Vector2(point.x*2-1,1-point.y*2),camera);
+      return raycaster.intersectObjects([water,...solid,...enemies.filter(enemy => enemy.alive).map(enemy => enemy.group)],true)[0] || null;
+    }
+    function cast() {
+      if(state.mode !== "fishing" || state.transition || ["casting","hooked"].includes(state.catchState)) return;
+      updateCamera(performance.now());
+      const hit = pick();
+      if(!hit || hit.object !== water) { log("Cast rejected: point at open water"); return; }
+      state.castPoint.copy(hit.point); state.heading = headingTo(hit.point); state.combatHeading = state.heading;
+      state.catchState = "casting"; state.catchStarted = state.worldTime;
+      log(`Cast at water (${hit.point.x.toFixed(1)}, ${hit.point.z.toFixed(1)})`);
+    }
+    function cancelCatch(reason="manual cancel") {
+      if(!["casting","hooked"].includes(state.catchState)) return;
+      state.catchState = "canceled"; state.canceledAt = performance.now(); log(`Catch canceled: ${reason}`);
+    }
+    function toggleMode() {
+      if(state.transition) return;
+      const now = performance.now(), to = state.mode === "fishing" ? "combat" : "fishing";
+      state.pendingFire = false; state.target = null; state.lock = null;
+      if(to === "combat") {
+        cancelCatch("Gunfish drawn");
+        state.lock = variant.id === "a" ? enemies.filter(enemy => enemy.alive).sort((a,b) => b.danger-a.danger)[0] || null : null;
+        state.combatHeading = state.lock ? headingTo(state.lock.group.position) : state.heading;
+        if(variant.id === "a") state.aim.set(.5,.5);
+      } else {
+        state.heading = state.combatHeading;
+      }
+      state.transition = { from:state.mode, to, started:now, duration:variant.duration };
+      updateCamera(now); log(to === "combat" ? `Draw: ${variant.name}` : "Sheathe: inputs gated until rod settles");
+    }
+    function fire(now=performance.now()) {
+      if(!combatIntent()) return;
+      if(state.transition && now-state.transition.started < variant.fireAt) {
+        if(!state.pendingFire) log(`One shot buffered until ${variant.fireAt} ms`);
+        state.pendingFire = true; return;
+      }
+      state.pendingFire = false; updateCamera(now);
+      const hit = pick();
+      const aimPoint = hit ? hit.point : raycaster.ray.at(70,new THREE.Vector3());
+      weapon.lookAt(aimPoint); weapon.rotateY(Math.PI); weapon.updateWorldMatrix(true,true);
+      const origin = muzzle.getWorldPosition(new THREE.Vector3());
+      // Camera ray chooses the aim point; a second ray prevents firing through cover at the muzzle.
+      raycaster.set(origin,aimPoint.clone().sub(origin).normalize()); raycaster.far = origin.distanceTo(aimPoint)+.1;
+      const impact = raycaster.intersectObjects([water,...solid,...enemies.filter(enemy => enemy.alive).map(enemy => enemy.group)],true)[0];
+      raycaster.far = Infinity;
+      const enemy = impact?.object.userData.enemy;
+      tracer.geometry.setFromPoints([origin,impact ? impact.point : aimPoint]); state.firedAt = now;
+      if(enemy) { enemy.alive = false; enemy.group.visible = false; state.threat = Math.max(0,state.threat-1); state.hitAt = now; if(state.lock === enemy) state.lock = null; log(`Hit ${enemy.name}; monster removed`); }
+      else log(impact ? "Shot hit scenery / water" : "Shot missed into sky");
+    }
+    function increaseThreat() {
+      state.threat = state.threat >= 8 ? 2 : state.threat+1;
+      enemies.filter(enemy => enemy.alive).forEach(enemy => { enemy.distance = Math.max(3.3,enemy.distance-.6); });
+      updateEnemies(); log(`Threat changed to ${state.threat} / 8`);
+    }
+    function updateWorld(delta,now) {
+      state.speed = variant.id === "b" && state.transition?.to === "combat" && now-state.transition.started < variant.duration ? .35 : 1;
+      const dt = delta*state.speed; state.worldTime += dt;
+      enemies.filter(enemy => enemy.alive).forEach(enemy => { enemy.distance = Math.max(3.3,enemy.distance-dt*(.12+state.threat*.045)); });
+      updateEnemies();
+      const positions = water.geometry.attributes.position;
+      for(let i=0;i<positions.count;i++) positions.setZ(i,Math.sin(positions.getX(i)*.7+state.worldTime*1.7)*Math.cos(positions.getY(i)*.5+state.worldTime)*.045);
+      positions.needsUpdate = true; water.geometry.computeVertexNormals();
+      buoy.position.y = Math.sin(state.worldTime*1.7)*.09;
+      if(state.catchState === "casting" && state.worldTime-state.catchStarted > .62) { state.catchState = "hooked"; state.threat = Math.min(8,state.threat+1); log("Gunfish hooked; Draw abandons it"); }
+      if(state.catchState === "canceled" && now-state.canceledAt > 650 && !state.transition && state.mode === "fishing") state.catchState = "idle";
+      const linger = variant.id === "b" && state.catchState === "canceled" && now-state.canceledAt < 100;
+      line.visible = bobber.visible = ["casting","hooked"].includes(state.catchState) || linger;
+      bobber.position.copy(state.castPoint); bobber.position.y = .12+Math.sin(state.worldTime*4)*.04;
+      line.geometry.setFromPoints([player.localToWorld(new THREE.Vector3(.4,2,-2)),bobber.position]);
+      tracer.visible = now-state.firedAt < 100;
+    }
+    function updateTelegraphs(now) {
+      ring.visible = bearing.visible = variant.id === "a";
+      const locked = state.lock?.alive ? state.lock : enemies.filter(enemy => enemy.alive).sort((a,b) => b.danger-a.danger)[0];
+      bearing.visible = ring.visible && Boolean(locked);
+      if(locked) bearing.setDirection(locked.group.position.clone().setY(0).normalize());
+      enemies.forEach(enemy => {
+        enemy.lane.visible = variant.id === "b" && enemy.alive;
+        const projected = enemy.group.position.clone().add(new THREE.Vector3(0,.7,0)).project(camera);
+        const behind = enemy.group.position.clone().applyMatrix4(camera.matrixWorldInverse).z > 0;
+        const outside = behind || Math.abs(projected.x) > .9 || Math.abs(projected.y) > .85;
+        enemy.warning.hidden = variant.id !== "c" || !combatIntent() || !enemy.alive || !outside;
+        if(!enemy.warning.hidden) {
+          let x = projected.x*(behind ? -1 : 1), y = -projected.y*(behind ? -1 : 1);
+          const scale = Math.max(Math.abs(x)/.88,Math.abs(y)/.72,1); x /= scale; y /= scale;
+          enemy.warning.style.left = `${50+x*50}%`; enemy.warning.style.top = `${50+y*50}%`;
+          enemy.warning.style.transform = `translate(-50%,-50%) rotate(${Math.atan2(y,x)}rad)`;
+        }
+      });
+      const cutFlash = variant.id === "c" && state.transition ? .5*(1-Math.min(1,(now-state.transition.started)/140)) : 0;
+      ui.flash.style.opacity = Math.max(cutFlash,Math.max(0,1-(now-state.hitAt)/100)*.2);
+    }
+    function updateInterface(now) {
+      const { elapsed,p } = timing(now), forward = combatIntent(), transition = state.transition;
+      ui.timelineCursor.style.left = `${transition ? Math.min(100,elapsed/transition.duration*100) : forward ? 100 : 0}%`;
+      ui.clock.textContent = transition ? `${Math.round(elapsed)} ms` : "settled";
+      ui.stateMode.textContent = transition ? `${transition.from} -> ${transition.to}` : state.mode;
+      ui.stateCamera.textContent = `${Math.round(p*100)}% shoulder`;
+      ui.stateCatch.textContent = state.catchState; ui.stateSpeed.textContent = `${Math.round(state.speed*100)}%`;
+      ui.stateTarget.textContent = state.target?.name || (state.lock ? `Bearing: ${state.lock.name}` : "None");
+      ui.stateControl.textContent = transition?.to === "fishing" ? "Locked: sheathing" : !forward ? "Rod" : !aimLive(now) ? `Locked ${Math.ceil(variant.aimAt-elapsed)} ms` : transition && elapsed < variant.fireAt ? "Aim; fire buffers" : "Aim + fire";
+      ui.modeName.textContent = forward ? "Combat mode" : "Fishing mode";
+      ui.modeStatus.textContent = transition ? `Transition ${Math.round(elapsed)} ms` : forward ? "Gunfish live" : "Rod ready";
+      ui.modeButton.innerHTML = transition ? "Camera moving" : `${forward ? "Sheathe" : "Draw"} Gunfish <span class="key">Space</span>`;
+      ui.modeButton.disabled = Boolean(transition);
+      ui.castButton.disabled = forward || Boolean(transition) || ["casting","hooked"].includes(state.catchState);
+      ui.cancelButton.disabled = forward || Boolean(transition) || !["casting","hooked"].includes(state.catchState);
+      ui.catchCallout.classList.toggle("hidden",forward || Boolean(transition));
+      const catchCopy = { idle:["Water is open","Click water or press F to cast"], casting:["Line running","Threat still moves - Draw abandons catch"], hooked:["Gunfish hooked","Draw or C abandons this test catch"], canceled:["Catch abandoned","No catch reward; line canceled"] }[state.catchState];
+      [ui.catchTitle.textContent,ui.catchHint.textContent] = catchCopy;
+      ui.reticle.classList.toggle("visible",aimLive(now) || (!state.transition && state.mode === "fishing" && matchMedia("(pointer:coarse), (max-width:580px)").matches)); ui.reticle.classList.toggle("locked",Boolean(state.target));
+      ui.reticle.style.setProperty("--x",`${state.aim.x*100}%`); ui.reticle.style.setProperty("--y",`${state.aim.y*100}%`);
+      ui.dangerMessage.classList.toggle("visible",Boolean(transition && forward));
+      ui.dangerMessage.textContent = variant.id === "a" ? "Danger bearing retained" : variant.id === "b" ? "World speed 35% - choose a lane" : "Incoming - bearings at screen edge";
+      ui.threatNumber.textContent = `${state.threat} / 8`;
+      [...ui.threatMeter.children].forEach((bar,i) => bar.classList.toggle("on",variant.id === "c" ? i < Math.ceil(state.threat/2) : i < state.threat));
+    }
+    function animate(now) {
+      const delta = Math.min(.05,(now-lastFrame)/1000); lastFrame = now;
+      if(!state.transition || aimLive(now)) {
+        for(const direction of heldAim.values()) {
+          state.aim.x = THREE.MathUtils.clamp(state.aim.x+direction[0]*delta*.45,.02,.98);
+          state.aim.y = THREE.MathUtils.clamp(state.aim.y+direction[1]*delta*.45,.02,.98);
+        }
+      }
+      document.getElementById("fireButton").disabled = !combatIntent();
+      updateCamera(now); updateWorld(delta,now); updateCamera(now);
+      if(state.pendingFire && state.transition?.to === "combat" && now-state.transition.started >= variant.fireAt) fire(now);
+      if(state.transition && now-state.transition.started >= state.transition.duration) {
+        state.mode = state.transition.to; state.transition = null;
+        if(state.mode === "fishing") { state.catchState = "idle"; state.heading = state.combatHeading; }
+        log(`${state.mode} camera settled`);
+      }
+      state.target = null;
+      if(aimLive(now)) {
+        const hit = pick();
+        state.target = hit?.object.userData.enemy || null;
+        weapon.lookAt(hit ? hit.point : raycaster.ray.at(70,new THREE.Vector3())); weapon.rotateY(Math.PI);
+      }
+      updateTelegraphs(now); updateInterface(now); renderer.render(scene,camera); requestAnimationFrame(animate);
+    }
+    function pointer(event) {
+      if(state.transition && !aimLive(performance.now())) return;
+      const rect = ui.scene.getBoundingClientRect();
+      state.aim.set(THREE.MathUtils.clamp((event.clientX-rect.left)/rect.width,0,1),THREE.MathUtils.clamp((event.clientY-rect.top)/rect.height,0,1));
+    }
+    const heldAim = new Map();
+    document.querySelectorAll("[data-aim]").forEach(button => {
+      button.addEventListener("pointerdown",event => {
+        event.preventDefault(); button.setPointerCapture(event.pointerId);
+        heldAim.set(event.pointerId,button.dataset.aim.split(",").map(Number));
+      });
+      for(const type of ["pointerup","pointercancel","lostpointercapture"]) {
+        button.addEventListener(type,event => heldAim.delete(event.pointerId));
+      }
+    });
+    window.addEventListener("blur",() => heldAim.clear());
+    document.addEventListener("visibilitychange",() => heldAim.clear());
+    document.getElementById("fireButton").addEventListener("click",() => fire());
+    ui.scene.addEventListener("pointermove",pointer);
+    ui.scene.addEventListener("pointerdown",event => {
+      if(event.button !== 0) return;
+      pointer(event); if(state.mode === "fishing" && !state.transition) cast(); else fire();
+    });
+    ui.modeButton.addEventListener("click",toggleMode); ui.castButton.addEventListener("click",cast);
+    ui.cancelButton.addEventListener("click",() => { if(!state.transition && state.mode === "fishing") cancelCatch(); });
+    ui.dangerButton.addEventListener("click",increaseThreat); ui.resetButton.addEventListener("click",reset);
+    ui.previousVariant.addEventListener("click",() => cycleVariant(-1)); ui.nextVariant.addEventListener("click",() => cycleVariant(1));
+    window.addEventListener("keydown",event => {
+      if(event.repeat || event.altKey || event.ctrlKey || event.metaKey || ["INPUT","TEXTAREA","SELECT"].includes(document.activeElement?.tagName) || document.activeElement?.isContentEditable) return;
+      const key = event.key.toLowerCase();
+      if(event.code === "Space") { event.preventDefault(); toggleMode(); }
+      if(key === "arrowleft" || key === "arrowright") { event.preventDefault(); cycleVariant(key === "arrowleft" ? -1 : 1); }
+      if(key === "f") cast(); if(key === "c" && !state.transition && state.mode === "fishing") cancelCatch();
+      if(key === "t") increaseThreat(); if(key === "r") reset();
+    });
+    function resize() { const { width,height } = ui.stage.getBoundingClientRect(); renderer.setSize(width,height,false); camera.aspect = width/height; camera.updateProjectionMatrix(); }
+    new ResizeObserver(resize).observe(ui.stage);
+    window.addEventListener("popstate",() => setVariant(new URLSearchParams(location.search).get("variant"),false));
+    for(let i=0;i<8;i++) ui.threatMeter.append(document.createElement("span"));
+    resize(); setVariant(new URLSearchParams(location.search).get("variant")); requestAnimationFrame(animate);
+  </script>
+</body>
+</html>
