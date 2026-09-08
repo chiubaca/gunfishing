@@ -1,4 +1,7 @@
+/// <reference types="vite/client" />
 import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { clone as cloneSkinned } from "three/addons/utils/SkeletonUtils.js";
 import { buildNature, meadowMaterial } from "./nature";
 import { Run } from "./run";
 import {
@@ -14,10 +17,11 @@ import {
   WORLD_SIZE,
 } from "./content";
 import { gunStats } from "./economy";
-import type { Action, Gunfish, Species, Vec } from "./types";
+import type { Action, Gunfish, Monster, Role, Species, Vec } from "./types";
 import "./style.css";
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
+const assetLoader = new GLTFLoader();
 app.innerHTML = `
   <main id="game" aria-label="Gunfishers survival game">
     <div id="viewport"></div><div class="vignette"></div>
@@ -355,18 +359,21 @@ for (let i = 0; i < LOCATIONS.length; i++) {
 }
 const player = new THREE.Group();
 scene.add(player);
-mesh(player, boxGeometry, 0x233f3b, 0, 1.1, 0, 0.65, 1, 0.42);
-mesh(player, sphereGeometry, 0xc6a37d, 0, 1.93, 0, 0.3, 0.34, 0.3);
+const playerBody = new THREE.Group();
+playerBody.name = "player-fallback";
+player.add(playerBody);
+mesh(playerBody, boxGeometry, 0x233f3b, 0, 1.1, 0, 0.65, 1, 0.42);
+mesh(playerBody, sphereGeometry, 0xc6a37d, 0, 1.93, 0, 0.3, 0.34, 0.3);
 mesh(
-  player,
+  playerBody,
   new THREE.CylinderGeometry(0.52, 0.52, 0.11, 12),
   0xcbbd85,
   0,
   2.14,
   0,
 );
-mesh(player, boxGeometry, 0x293d38, -0.19, 0.35, 0, 0.22, 0.7, 0.28);
-mesh(player, boxGeometry, 0x293d38, 0.19, 0.35, 0, 0.22, 0.7, 0.28);
+mesh(playerBody, boxGeometry, 0x293d38, -0.19, 0.35, 0, 0.22, 0.7, 0.28);
+mesh(playerBody, boxGeometry, 0x293d38, 0.19, 0.35, 0, 0.22, 0.7, 0.28);
 const rod = mesh(
   player,
   boxGeometry,
@@ -435,6 +442,23 @@ function fishModel(species: Species, rarity: number, parent: THREE.Object3D) {
 }
 let heldId = "";
 const entities = new Map<string, THREE.Group>();
+const monsterAssetPaths: Record<Role, string> = {
+  skitter: "Zombie_Basic.gltf",
+  ramjaw: "Zombie_Arm.gltf",
+  spitter: "Zombie_Ribcage.gltf",
+  shellback: "Zombie_Chubby.gltf",
+};
+const monsterModelHeights: Record<Role, number> = {
+  skitter: 2.1,
+  ramjaw: 2.25,
+  spitter: 2,
+  shellback: 2.6,
+};
+type MonsterAsset = {
+  scene: THREE.Object3D;
+  animations: THREE.AnimationClip[];
+};
+const monsterAssets = new Map<Role, MonsterAsset>();
 function entity(id: string, create: (g: THREE.Group) => void) {
   let g = entities.get(id);
   if (!g) {
@@ -447,6 +471,12 @@ function entity(id: string, create: (g: THREE.Group) => void) {
   return g;
 }
 function disposeEntity(group: THREE.Object3D) {
+  const mixer = group.userData.mixer as THREE.AnimationMixer | undefined;
+  if (group.userData.monsterAsset) {
+    mixer?.stopAllAction();
+    group.removeFromParent();
+    return;
+  }
   const shared = new Set<THREE.BufferGeometry>([
     boxGeometry,
     sphereGeometry,
@@ -481,6 +511,132 @@ function resetModels() {
   previousHealth = 100;
   previousStatus = "";
 }
+function clearMonsterEntities() {
+  for (const [id, group] of entities) {
+    if (!group.userData.monster) continue;
+    if (group.userData.lane) disposeEntity(group.userData.lane);
+    disposeEntity(group);
+    entities.delete(id);
+  }
+}
+function setMonsterAnimation(group: THREE.Group, monster: Monster) {
+  const actions = group.userData.actions as
+    | Map<string, THREE.AnimationAction>
+    | undefined;
+  if (!actions?.size) return;
+  const candidates =
+    monster.staggerTime > 0
+      ? ["HitReact", "Idle"]
+      : monster.windup > 0
+        ? ["Idle_Attack", "Run_Attack", "Punch", "Idle"]
+        : monster.alerted
+          ? ["Run", "Walk", "Idle"]
+          : ["Walk", "Idle"];
+  const name = candidates.find((candidate) => actions.has(candidate));
+  if (!name || name === group.userData.animationName) return;
+  const previous = actions.get(group.userData.animationName as string);
+  const next = actions.get(name)!;
+  previous?.fadeOut(0.15);
+  next.reset();
+  const oneShot = monster.staggerTime > 0 || monster.windup > 0;
+  next.setLoop(oneShot ? THREE.LoopOnce : THREE.LoopRepeat, oneShot ? 1 : Infinity);
+  next.clampWhenFinished = oneShot;
+  next.fadeIn(0.15).play();
+  group.userData.animationName = name;
+}
+function addMonsterAsset(group: THREE.Group, role: Role): boolean {
+  const asset = monsterAssets.get(role);
+  if (!asset) return false;
+  const model = cloneSkinned(asset.scene);
+  model.name = "zombie-model";
+  model.updateMatrixWorld(true);
+  const bounds = new THREE.Box3().setFromObject(model);
+  const height = Math.max(0.001, bounds.max.y - bounds.min.y);
+  const scale = monsterModelHeights[role] / height;
+  model.scale.setScalar(scale);
+  model.position.y = -bounds.min.y * scale;
+  model.traverse((child) => {
+    if (!(child instanceof THREE.Mesh)) return;
+    child.castShadow = true;
+    child.receiveShadow = true;
+  });
+  group.add(model);
+  const mixer = new THREE.AnimationMixer(model);
+  const actions = new Map<string, THREE.AnimationAction>();
+  for (const clip of asset.animations) actions.set(clip.name, mixer.clipAction(clip));
+  group.userData.monsterAsset = true;
+  group.userData.mixer = mixer;
+  group.userData.actions = actions;
+  const idle = actions.get("Idle");
+  if (idle) {
+    idle.play();
+    group.userData.animationName = "Idle";
+  }
+  return true;
+}
+async function loadMonsterAssets() {
+  const results = await Promise.allSettled(
+    Object.entries(monsterAssetPaths).map(async ([role, file]) => {
+      const gltf = await assetLoader.loadAsync(
+        `${import.meta.env.BASE_URL}assets/zombie-apocalypse-kit/${file}`,
+      );
+      monsterAssets.set(role as Role, {
+        scene: gltf.scene,
+        animations: gltf.animations,
+      });
+    }),
+  );
+  const failed = results.filter((result) => result.status === "rejected");
+  if (failed.length)
+    console.warn(`${failed.length} zombie asset(s) failed to load; using fallback meshes.`);
+  clearMonsterEntities();
+}
+void loadMonsterAssets();
+let playerMixer: THREE.AnimationMixer | undefined;
+let playerActions: Map<string, THREE.AnimationAction> | undefined;
+let playerAnimationName = "";
+function setPlayerAnimation(name: string) {
+  if (!playerActions?.size) return;
+  const nextName = playerActions.has(name) ? name : "Idle";
+  if (nextName === playerAnimationName) return;
+  const previous = playerActions.get(playerAnimationName);
+  const next = playerActions.get(nextName);
+  if (!next) return;
+  previous?.fadeOut(0.15);
+  next.reset().setLoop(THREE.LoopRepeat, Infinity).fadeIn(0.15).play();
+  playerAnimationName = nextName;
+}
+async function loadPlayerAsset() {
+  try {
+    const gltf = await assetLoader.loadAsync(
+      `${import.meta.env.BASE_URL}assets/zombie-apocalypse-kit/Characters_Shaun.gltf`,
+    );
+    const model = cloneSkinned(gltf.scene);
+    model.name = "shaun-player";
+    model.updateMatrixWorld(true);
+    const bounds = new THREE.Box3().setFromObject(model);
+    const height = Math.max(0.001, bounds.max.y - bounds.min.y);
+    const scale = 2.2 / height;
+    model.scale.setScalar(scale);
+    model.position.y = -bounds.min.y * scale;
+    model.traverse((child) => {
+      if (!(child instanceof THREE.Mesh)) return;
+      child.castShadow = true;
+      child.receiveShadow = true;
+    });
+    disposeEntity(playerBody);
+    player.add(model);
+    playerMixer = new THREE.AnimationMixer(model);
+    playerActions = new Map(
+      gltf.animations.map((clip) => [clip.name, playerMixer!.clipAction(clip)]),
+    );
+    playerAnimationName = "";
+    setPlayerAnimation("Idle");
+  } catch (error) {
+    console.warn("Shaun player asset failed to load; using fallback mesh.", error);
+  }
+}
+void loadPlayerAsset();
 const threatRing = new THREE.Mesh(
   ringGeometry.clone().rotateX(-Math.PI / 2),
   new THREE.MeshBasicMaterial({
@@ -989,7 +1145,10 @@ const alerted = new Set<string>(),
 let hudTime = 0,
   saveTime = 0,
   tugTime = 0;
+let lastRenderTime = performance.now() / 1000;
 function renderWorld(time: number) {
+  const animationDelta = Math.min(0.1, Math.max(0, time - lastRenderTime));
+  lastRenderTime = time;
   const s = run.state,
     p = s.player;
   const catchState = s.cast?.phase === "catch" ? s.cast : null;
@@ -1018,6 +1177,18 @@ function renderWorld(time: number) {
   const ground = terrainHeight(p);
   player.position.set(p.x, ground + p.y, p.z);
   player.rotation.y = p.heading;
+  const moving = ["KeyW", "KeyA", "KeyS", "KeyD"].some((key) => keys.has(key));
+  setPlayerAnimation(
+    s.mode === "fishing" || s.mode === "returning"
+      ? moving
+        ? "Walk"
+        : "Idle"
+      : s.sprinting
+        ? "Run_Gun"
+        : moving
+          ? "Walk_Gun"
+          : "Idle_Gun",
+  );
   const gun = s.arsenal.find((g) => g.id === s.slots[s.active]);
   const fishing = s.mode === "fishing" || s.mode === "returning";
   rod.visible = fishing || !gun || s.rodCooldown > 0.3;
@@ -1163,45 +1334,48 @@ function renderWorld(time: number) {
   for (const m of s.monsters) {
     if (distance(p, m) > 160) continue;
     const g = entity(m.id, (g) => {
-      const color =
-        m.role === "spitter"
-          ? 0xaab869
-          : m.role === "shellback"
-            ? 0x7a7770
-            : m.role === "ramjaw"
-              ? 0xc78565
-              : 0xb4aaa0;
-      const scale =
-        m.role === "shellback" ? 1.7 : m.role === "ramjaw" ? 1.2 : 0.85;
-      mesh(
-        g,
-        sphereGeometry,
-        color,
-        0,
-        0.8 * scale,
-        0,
-        scale,
-        0.75 * scale,
-        scale * 1.25,
-      );
-      for (const side of [-1, 1]) {
-        mesh(g, boxGeometry, 0x3f5149, side * scale, 0.38, 0.3, 0.18, 0.7, 0.2);
+      g.userData.monster = true;
+      if (!addMonsterAsset(g, m.role)) {
+        const color =
+          m.role === "spitter"
+            ? 0xaab869
+            : m.role === "shellback"
+              ? 0x7a7770
+              : m.role === "ramjaw"
+                ? 0xc78565
+                : 0xb4aaa0;
+        const scale =
+          m.role === "shellback" ? 1.7 : m.role === "ramjaw" ? 1.2 : 0.85;
         mesh(
           g,
           sphereGeometry,
-          0xf8d389,
-          side * 0.3,
+          color,
+          0,
+          0.8 * scale,
+          0,
           scale,
-          scale,
-          0.13,
-          0.13,
-          0.13,
+          0.75 * scale,
+          scale * 1.25,
         );
+        for (const side of [-1, 1]) {
+          mesh(g, boxGeometry, 0x3f5149, side * scale, 0.38, 0.3, 0.18, 0.7, 0.2);
+          mesh(
+            g,
+            sphereGeometry,
+            0xf8d389,
+            side * 0.3,
+            scale,
+            scale,
+            0.13,
+            0.13,
+            0.13,
+          );
+        }
+        if (m.role === "ramjaw")
+          mesh(g, boxGeometry, 0xd7ceaa, 0, 0.65, 1.6, 1.1, 0.5, 0.7);
+        if (m.role === "shellback")
+          mesh(g, sphereGeometry, 0x475b54, 0, 1.5, 0.3, 1.8, 0.8, 1.7);
       }
-      if (m.role === "ramjaw")
-        mesh(g, boxGeometry, 0xd7ceaa, 0, 0.65, 1.6, 1.1, 0.5, 0.7);
-      if (m.role === "shellback")
-        mesh(g, sphereGeometry, 0x475b54, 0, 1.5, 0.3, 1.8, 0.8, 1.7);
       const lane = new THREE.Group();
       lane.name = "lane";
       const laneMat = new THREE.MeshBasicMaterial({
@@ -1242,6 +1416,7 @@ function renderWorld(time: number) {
     );
     g.rotation.y = m.heading;
     g.rotation.z = m.stagger > 0 ? Math.sin(time * 45) * 0.08 : 0;
+    setMonsterAnimation(g, m);
     const lane = g.userData.lane as THREE.Group;
     lane.visible = !!m.lane;
     if (m.lane) {
@@ -1421,6 +1596,11 @@ function renderWorld(time: number) {
     previousNotice = s.notice;
   }
   updatePlacement();
+  playerMixer?.update(animationDelta);
+  for (const group of entities.values()) {
+    const mixer = group.userData.mixer as THREE.AnimationMixer | undefined;
+    mixer?.update(animationDelta);
+  }
   renderer.render(scene, camera);
 }
 function renderHud() {
