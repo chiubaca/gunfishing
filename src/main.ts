@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { buildNature, meadowMaterial } from "./nature";
 import { Run } from "./run";
 import {
   catchingPosition,
@@ -108,8 +109,8 @@ function persist() {
 }
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x9cb8ae);
-scene.fog = new THREE.FogExp2(0x9cb8ae, 0.008);
+scene.background = new THREE.Color(0xb9d9d2);
+scene.fog = new THREE.FogExp2(0xb9d9d2, 0.0045);
 const camera = new THREE.PerspectiveCamera(
   48,
   innerWidth / innerHeight,
@@ -132,6 +133,8 @@ renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
 el("viewport").append(renderer.domElement);
 renderer.domElement.setAttribute(
   "aria-label",
@@ -140,7 +143,7 @@ renderer.domElement.setAttribute(
 scene.add(new THREE.HemisphereLight(0xe4f4e9, 0x41584b, 2.3));
 const sun = new THREE.DirectionalLight(0xffddb0, 3.1);
 sun.castShadow = true;
-sun.shadow.mapSize.set(1024, 1024);
+sun.shadow.mapSize.set(2048, 2048);
 sun.shadow.camera.left = -65;
 sun.shadow.camera.right = 65;
 sun.shadow.camera.top = 65;
@@ -182,14 +185,30 @@ function mesh(
   parent.add(m);
   return m;
 }
-mesh(scene, boxGeometry, 0x718271, 0, -0.42, 0, WORLD_SIZE, 0.8, WORLD_SIZE);
-const waterMaterial = new THREE.MeshStandardMaterial({
-  color: 0x315f61,
-  roughness: 0.3,
-  metalness: 0.35,
-  transparent: true,
-  opacity: 0.86,
+const meadow = mesh(scene, boxGeometry, 0x718271, 0, -0.42, 0, WORLD_SIZE, 0.8, WORLD_SIZE);
+meadow.material = meadowMaterial();
+void buildNature(scene).catch((error: unknown) => {
+  console.error("Nature scenery loading failed", error);
+  el("save-warning").hidden = false;
+  text("save-warning", "Some scenery could not load. You can still play; reload to retry.");
 });
+const waterMaterial = new THREE.MeshStandardMaterial({
+  color: 0x268b86,
+  roughness: 0.22,
+  metalness: 0.25,
+  transparent: false,
+});
+const waterTime = { value: 0 };
+waterMaterial.onBeforeCompile = (shader) => {
+  shader.uniforms.waterTime = waterTime;
+  shader.vertexShader = shader.vertexShader.replace("#include <common>", "#include <common>\nvarying vec2 waterPosition;")
+    .replace("#include <worldpos_vertex>", "#include <worldpos_vertex>\nwaterPosition = (modelMatrix * vec4(transformed, 1.0)).xz;");
+  shader.fragmentShader = shader.fragmentShader.replace("#include <common>", "#include <common>\nuniform float waterTime;\nvarying vec2 waterPosition;")
+    .replace("#include <color_fragment>", `#include <color_fragment>
+float wave = sin(waterPosition.x * 2.8 + waterTime * 0.7) * sin(waterPosition.y * 3.5 - waterTime * 0.5);
+diffuseColor.rgb *= 0.96 + 0.04 * wave;`);
+};
+waterMaterial.onBeforeRender = () => { waterTime.value = performance.now() / 1000; };
 const waters: THREE.Mesh[] = [];
 const cameraObstacles: THREE.Object3D[] = [];
 const waterGeometry = new THREE.CircleGeometry(14, 64);
@@ -225,7 +244,7 @@ for (const [index, location] of LOCATIONS.entries()) {
         }) + 0.025,
       );
     terrain.computeVertexNormals();
-    const bank = new THREE.Mesh(terrain, material(0x858779));
+    const bank = new THREE.Mesh(terrain, meadowMaterial());
     bank.position.set(location.x, 0, location.z);
     bank.receiveShadow = true;
     scene.add(bank);
@@ -283,26 +302,26 @@ for (const [i, o] of OBSTACLES.entries()) {
   cameraObstacles.push(
     mesh(
       scene,
-      boxGeometry,
+      sphereGeometry,
       i % 3 ? 0x64736b : 0x74756b,
       o.x,
       ground + o.height / 2,
       o.z,
-      o.width,
-      o.height,
-      o.depth,
+      o.width * 0.72,
+      o.height * 0.65,
+      o.depth * 0.72,
     ),
   );
   mesh(
     scene,
-    boxGeometry,
-    0x929a7b,
+    sphereGeometry,
+    0x657d3b,
     o.x,
-    ground + o.height + 0.12,
+    ground + o.height * 0.83,
     o.z,
-    o.width + 0.2,
-    0.25,
-    o.depth + 0.2,
+    o.width * 0.53,
+    o.height * 0.27,
+    o.depth * 0.53,
   );
 }
 // Low, traversable causeways indicate the outer circuit and exposed central shortcuts.
