@@ -2,6 +2,8 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { LOCATIONS, OBSTACLES, terrainHeight, WORLD_SIZE } from "./content";
+import { biomeAt, LANDMARKS } from "./exploration";
+import { onIsland, waterAt } from "./geography";
 
 // Static scenery owns its shared resources independently of disposable run entities.
 export async function buildNature(scene: THREE.Scene): Promise<void> {
@@ -15,6 +17,8 @@ export async function buildNature(scene: THREE.Scene): Promise<void> {
   const placements: THREE.Matrix4[][] = names.map(() => []);
   const dummy = new THREE.Object3D();
   const place = (kind: number, x: number, z: number, scale: number) => {
+    if (!onIsland({ x, z }, 12) || waterAt({ x, z })) return;
+    if (biomeAt({ x, z }) !== "forest" || LANDMARKS.some(p => Math.hypot(x - p.x, z - p.z) < 38)) return;
     dummy.position.set(x, terrainHeight({ x, z }) + 0.04, z);
     dummy.rotation.set(0, random() * Math.PI * 2, 0);
     dummy.scale.setScalar(scale);
@@ -27,13 +31,14 @@ export async function buildNature(scene: THREE.Scene): Promise<void> {
     return Math.hypot(x - a.x - dx * t, z - a.z - dz * t);
   };
   const clear = (x: number, z: number, margin: number) =>
-    !LOCATIONS.some((p, i) => Math.hypot(x - p.x, z - p.z) < 20 + margin ||
-      segmentDistance(x, z, p, LOCATIONS[(i + 1) % LOCATIONS.length]) < 5 + margin ||
+    !waterAt({ x, z }) && onIsland({ x, z }, 12) &&
+    !LOCATIONS.slice(0, 6).some((p, i) => Math.hypot(x - p.x, z - p.z) < 20 + margin ||
+      segmentDistance(x, z, p, LOCATIONS[(i + 1) % 6]) < 5 + margin ||
       segmentDistance(x, z, p, { x: 0, z: 0 }) < 3 + margin) &&
     !OBSTACLES.some((o) => Math.abs(x - o.x) < o.width / 2 + margin && Math.abs(z - o.z) < o.depth / 2 + margin);
 
   // Broad groves give the long journeys a landscape; finer planting frames each pool.
-  for (let i = 0; i < 14500; i++) {
+  for (let i = 0; i < 3600; i++) {
     const x = (random() - 0.5) * (WORLD_SIZE - 40);
     const z = (random() - 0.5) * (WORLD_SIZE - 40);
     if (!clear(x, z, 4)) continue;
@@ -42,7 +47,7 @@ export async function buildNature(scene: THREE.Scene): Promise<void> {
     place(x > 200 && z < 0 && random() < 0.5 ? 9 + Math.floor(random() * 2) : Math.floor(random() * 5), x, z, 1.1 + random() * 1.5);
     if (random() > 0.55) place(5 + Math.floor(random() * 3), x + 3, z + 2, 1 + random());
   }
-  for (const p of LOCATIONS) {
+  for (const p of LOCATIONS.filter(p => p.region !== "Open Ocean")) {
     for (let i = 0; i < 12; i++) {
       const angle = (i / 12) * Math.PI * 2;
       const x = p.x + Math.sin(angle) * 27, z = p.z + Math.cos(angle) * 27;
@@ -109,10 +114,11 @@ export async function buildNature(scene: THREE.Scene): Promise<void> {
 export function meadowMaterial(): THREE.MeshStandardMaterial {
   const material = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1 });
   material.onBeforeCompile = (shader) => {
-    shader.vertexShader = shader.vertexShader.replace("#include <common>", "#include <common>\nvarying vec2 meadowPosition;")
-      .replace("#include <worldpos_vertex>", "#include <worldpos_vertex>\nmeadowPosition = (modelMatrix * vec4(transformed, 1.0)).xz;");
+    shader.vertexShader = shader.vertexShader.replace("#include <common>", "#include <common>\nvarying vec2 meadowPosition; varying float meadowSlope;")
+      .replace("#include <worldpos_vertex>", "#include <worldpos_vertex>\nmeadowPosition = (modelMatrix * vec4(transformed, 1.0)).xz; meadowSlope = 1.0 - normal.y;");
     shader.fragmentShader = shader.fragmentShader.replace("#include <common>", `#include <common>
 varying vec2 meadowPosition;
+varying float meadowSlope;
 float meadowHash(vec2 p) { return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
 float meadowNoise(vec2 p) {
   vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
@@ -120,7 +126,42 @@ float meadowNoise(vec2 p) {
 }`)
       .replace("#include <color_fragment>", `#include <color_fragment>
 float n = meadowNoise(meadowPosition * 0.09) * 0.7 + meadowNoise(meadowPosition * 0.7) * 0.3;
-diffuseColor.rgb *= mix(vec3(0.13, 0.24, 0.095), vec3(0.43, 0.49, 0.22), n);`);
+vec3 forest = mix(vec3(0.20, 0.43, 0.16), vec3(0.46, 0.64, 0.27), n);
+vec3 sand = mix(vec3(0.70, 0.53, 0.27), vec3(0.94, 0.80, 0.48), n);
+vec3 snow = mix(vec3(0.65, 0.82, 0.91), vec3(0.95, 0.98, 1.0), n);
+vec3 jungle = mix(vec3(0.16, 0.38, 0.18), vec3(0.40, 0.61, 0.25), n);
+float snowy = 1.0 - smoothstep(-205.0, -155.0, meadowPosition.y);
+vec3 ground = mix(mix(forest, jungle, smoothstep(95.0, 145.0, meadowPosition.x)), snow, snowy);
+vec3 rock = mix(vec3(0.38, 0.36, 0.28), vec3(0.42, 0.51, 0.59), snowy) * (0.85 + n * 0.3);
+ground = mix(ground, rock, smoothstep(0.08, 0.36, meadowSlope));
+float angle = atan(meadowPosition.y, meadowPosition.x);
+float inland = 535.0 + 24.0 * sin(angle * 3.0 + 0.6) + 18.0 * cos(angle * 5.0) - length(meadowPosition);
+diffuseColor.rgb *= mix(sand, ground, smoothstep(10.0, 26.0, inland));`);
   };
   return material;
+}
+
+export function buildTerrain(scene: THREE.Scene): THREE.Mesh[] {
+  const material = meadowMaterial(), meshes: THREE.Mesh[] = [];
+  // Small, independently culled tiles keep the detailed island affordable.
+  for (let x = -640; x < 640; x += 160) for (let z = -640; z < 640; z += 160) {
+    const geometry = new THREE.PlaneGeometry(160, 160, 64, 64);
+    geometry.rotateX(-Math.PI / 2);
+    const vertices = geometry.getAttribute("position");
+    for (let i = 0; i < vertices.count; i++)
+      vertices.setY(i, terrainHeight({ x: x + 80 + vertices.getX(i), z: z + 80 + vertices.getZ(i) }) - 0.02);
+    const indices: number[] = [], source = geometry.index!;
+    for (let i = 0; i < source.count; i += 3) {
+      const ids = [source.getX(i), source.getX(i + 1), source.getX(i + 2)];
+      if (ids.every(id => onIsland({ x: x + 80 + vertices.getX(id), z: z + 80 + vertices.getZ(id) }))) indices.push(...ids);
+    }
+    if (!indices.length) { geometry.dispose(); continue; }
+    geometry.setIndex(indices);
+    geometry.computeVertexNormals();
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.position.set(x + 80, 0, z + 80);
+    mesh.receiveShadow = true;
+    scene.add(mesh); meshes.push(mesh);
+  }
+  return meshes;
 }

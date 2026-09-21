@@ -74,6 +74,21 @@ export class Run {
       )
         throw new Error("Unsupported Run save");
       this.state = saved;
+      if (saved.worldVersion !== 2) {
+        // Keep the character and catches while relocating the old, larger map's entities.
+        const fresh = new Run({ seed: saved.seed }).state;
+        saved.fish.forEach((fish, i) => {
+          const replacement = fresh.fish[i];
+          if (replacement) Object.assign(fish, { x: replacement.x, z: replacement.z, home: { ...replacement.home } });
+        });
+        for (const fish of fresh.fish.slice(saved.fish.length)) saved.fish.push({ ...fish, id: this.id("fish") });
+        const relocate = (p: Vec) => Object.assign(p, this.stable({ x: p.x / 1.9, z: p.z / 1.9 }));
+        relocate(saved.player);
+        if (saved.cache) relocate(saved.cache);
+        saved.monsters.forEach(relocate); saved.mounted.forEach(relocate); saved.drops.forEach(relocate);
+        saved.projectiles = []; saved.cast = null;
+        saved.worldVersion = 2;
+      }
       this.state.player.pitch ??= 0;
       for (const p of this.state.projectiles) {
         p.y ??= terrainHeight(p) + 1.15;
@@ -84,6 +99,7 @@ export class Run {
     }
     this.state = {
       version: 1,
+      worldVersion: 2,
       seed: (options.seed ?? Date.now()) >>> 0,
       nextId: 1,
       elapsed: 0,
@@ -142,9 +158,9 @@ export class Run {
         time: this.route(p, s.cache!).distance / 9,
       }));
       const roll = this.random();
-      const low = roll < 0.2 ? 45 : roll < 0.8 ? 75 : 150;
-      const high = low === 45 ? 75 : low === 75 ? 150 : 240;
-      const legal = candidates.filter((c) => c.time >= 45 && c.time <= 240);
+      const low = roll < 0.2 ? 20 : roll < 0.8 ? 45 : 75;
+      const high = low === 20 ? 45 : low === 45 ? 75 : 120;
+      const legal = candidates.filter((c) => c.time >= 20 && c.time <= 120);
       const band = legal.filter((c) => c.time >= low && c.time <= high);
       pockets = (band.length ? band : legal).map((c) => c.p);
       if (!pockets.length) pockets = POCKETS;
@@ -183,7 +199,7 @@ export class Run {
           ...point,
           id: this.id("fish"),
           species,
-          rarity,
+           rarity: location.secret ? 3 : rarity,
           interest: 0,
           cooldown: 0,
           landed: false,
@@ -270,9 +286,10 @@ export class Run {
     };
   }
 
-  private solid(point: Vec, radius = 0): boolean {
+  private solid(point: Vec, radius = 0, shoreline = true): boolean {
     const half = WORLD_SIZE / 2;
     return (
+      (shoreline && !onIsland(point, radius)) ||
       Math.abs(point.x) > half - radius ||
       Math.abs(point.z) > half - radius ||
       OBSTACLES.some(
@@ -288,6 +305,7 @@ export class Run {
       x: clamp(point.x, -half, half),
       z: clamp(point.z, -half, half),
     };
+    if (!onIsland(p, 2)) Object.assign(p, coastPoint(Math.atan2(p.z, p.x), 3));
     for (let i = 0; i < OBSTACLES.length + 1 && this.solid(p); i++) {
       const obstacle = OBSTACLES.find(
         (o) =>
@@ -458,7 +476,7 @@ export class Run {
         return;
       if (
         distance(s.player, action.point) > 32 ||
-        this.solid(action.point) ||
+        this.solid(action.point, 0, false) ||
         !this.los(s.player, action.point) ||
         !s.fish.some((f) => !f.landed && distance(f.home, action.point) < 12)
       )
@@ -500,7 +518,7 @@ export class Run {
       if (
         distance(point, cast.anchor) > 2 ||
         distance(point, s.player) > 32 ||
-        this.solid(point) ||
+        this.solid(point, 0, false) ||
         !this.los(cast.lure, point) ||
         !s.fish.some((f) => distance(f.home, point) < 12)
       )
@@ -775,7 +793,7 @@ export class Run {
           dz = ((s.player.z - cast.lure.z) / d) * dt * 0.8;
         const point = { x: cast.lure.x + dx, z: cast.lure.z + dz };
         if (
-          !this.solid(point) &&
+          !this.solid(point, 0, false) &&
           this.los(cast.lure, point) &&
           s.fish.some((f) => distance(f.home, point) < 12)
         ) {
@@ -1795,3 +1813,4 @@ export class Run {
     }
   }
 }
+import { coastPoint, onIsland } from "./geography";

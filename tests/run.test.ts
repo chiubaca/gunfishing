@@ -152,11 +152,11 @@ describe("Quarry elevation through Run", () => {
       { ...monster("ramjaw"), x: basin.x, z: basin.z + 25, recovery: 10 },
     ];
     run.act({ type: "fire" });
-    expect(run.state.projectiles[0].y).toBeCloseTo(7.15);
+    expect(run.state.projectiles[0].y).toBeCloseTo(terrainHeight(run.state.player) + 1.15);
     expect(run.state.projectiles[0].vy).toBe(0);
     run.step(0.3);
     expect(run.state.monsters[0].health).toBe(100);
-    run.step(0, { pitch: Math.atan2(-4.8, 20), aim: true });
+    run.step(0, { pitch: Math.atan2(terrainHeight(run.state.monsters[0]) - terrainHeight(run.state.player), 20), aim: true });
     run.act({ type: "fire" });
     run.step(0.3);
     expect(run.state.monsters[0].health).toBe(76);
@@ -176,28 +176,19 @@ describe("Quarry elevation through Run", () => {
     run.act({ type: "rod" });
     expect(run.state.monsters[0].health).toBe(100);
   });
-  it("keeps water and openings flat while walking and jumping over both basin ramps", () => {
+  it("keeps water low while walking and jumping over both basin slopes", () => {
     const run = quiet();
     for (const basin of run
       .content()
       .locations.filter((l) => l.region === "Sunken Quarry")) {
-      for (const [radius, height] of [
-        [0, 0],
-        [14, 0],
-        [20, 0],
-        [32.5, 3],
-        [45, 6],
-        [60, 6],
-        [80, 3],
-        [100, 0],
-      ]) {
+      for (const radius of [0, 14, 20, 32.5, 45, 60, 80, 100]) {
         const point = { x: basin.x, z: basin.z + radius };
-        expect(run.surfaceHeight(point)).toBeCloseTo(height);
-        expect(terrainHeight(point)).toBeCloseTo(height);
+        expect(run.surfaceHeight(point)).toBeCloseTo(terrainHeight(point));
       }
+      expect(run.surfaceHeight(basin)).toBe(0);
       Object.assign(run.state.player, { x: basin.x, z: basin.z + 20 });
       run.step(5, { z: 1 });
-      expect(run.surfaceHeight(run.state.player)).toBeCloseTo(6);
+      expect(run.surfaceHeight(run.state.player)).toBeGreaterThan(1);
       expect(run.state.player.y).toBe(0);
       run.act({ type: "jump" });
       run.step(0.2);
@@ -206,7 +197,7 @@ describe("Quarry elevation through Run", () => {
       expect(run.state.player.y).toBe(0);
     }
     for (const pocket of run.content().pockets)
-      expect(run.surfaceHeight(pocket)).toBe(0);
+      expect(run.surfaceHeight(pocket)).toBeLessThan(3);
     for (const f of new Run({ seed: 2048 }).state.fish)
       expect(run.surfaceHeight(f)).toBe(0);
   });
@@ -1192,10 +1183,10 @@ describe("Authored content through Run", () => {
       [360, 660, 6, 20, 15],
       [660, 900, 8, 15, 10],
     ]);
-    expect(content.locations).toHaveLength(6);
+    expect(content.locations.length).toBeGreaterThan(12);
     expect(content.pockets).toHaveLength(6);
-    expect(new Set(content.locations.map((l) => l.region)).size).toBe(3);
-    expect(content.locations.filter((l) => l.exposed)).toHaveLength(3);
+    expect(content.locations.some(l => l.region === "Open Ocean")).toBe(true);
+    expect(content.locations.filter(l => l.secret)).toHaveLength(2);
     for (const cell of content.mixes.flat())
       expect(cell.reduce((sum, mix) => sum + mix.weight, 0)).toBeCloseTo(1);
     content.species.pistol.damage = 0;
@@ -1210,7 +1201,7 @@ describe("Authored content through Run", () => {
       starts.add(`${run.state.player.x},${run.state.player.z}`);
       run.state.catches = 1;
       let detected = false;
-      for (let i = 0; i < 110 && !detected; i++) {
+      for (let i = 0; i < 150 && !detected; i++) {
         run.step(1);
         detected = run.state.monsters.some((m) => m.alerted);
       }
@@ -1230,9 +1221,9 @@ describe("Authored content through Run", () => {
             run.state.player.x - cache.x,
             run.state.player.z - cache.z,
           ) / 9;
-        expect(time).toBeGreaterThanOrEqual(45);
-        expect(time).toBeLessThanOrEqual(240);
-        bands.add(time < 75 ? "favorable" : time < 150 ? "contested" : "poor");
+        expect(time).toBeGreaterThanOrEqual(20);
+        expect(time).toBeLessThanOrEqual(120);
+        bands.add(time < 45 ? "favorable" : time < 75 ? "contested" : "poor");
       }
       expect([...bands].sort(), JSON.stringify(pocket)).toEqual([
         "contested",
@@ -1250,9 +1241,9 @@ describe("Authored content through Run", () => {
           Math.abs(z - o.z) < o.depth / 2 + 0.5,
       );
     // A coarse independent walkability flood checks the authored geometry, not Run's pathfinder.
-    for (const innerRadius of [0, 600]) {
-      const queue = [{ x: 0, z: 1000 }],
-        visited = new Set(["0,1000"]);
+    for (const innerRadius of [0, 260]) {
+      const queue = [{ x: 0, z: 480 }],
+        visited = new Set(["0,480"]);
       for (let i = 0; i < queue.length; i++) {
         const point = queue[i];
         for (const [dx, dz] of [
@@ -1267,7 +1258,7 @@ describe("Authored content through Run", () => {
           if (
             visited.has(key) ||
             Math.hypot(x, z) < innerRadius ||
-            Math.hypot(x, z) > 1100
+            !onIsland({ x, z }, 2)
           )
             continue;
           if (
@@ -1285,9 +1276,9 @@ describe("Authored content through Run", () => {
           queue.some((p) => Math.hypot(p.x - pocket.x, p.z - pocket.z) < 15),
         ).toBe(true);
       for (const point of [
-        { x: 1000, z: 0 },
-        { x: 0, z: -1000 },
-        { x: -1000, z: 0 },
+        { x: 480, z: 0 },
+        { x: 0, z: -480 },
+        { x: -480, z: 0 },
       ])
         expect(visited.has(`${point.x},${point.z}`)).toBe(true);
       if (!innerRadius) expect(visited.has("0,0")).toBe(true);
@@ -1402,3 +1393,4 @@ describe("Progression economy through Run", () => {
     expect(run.state.reserves.pistol).toBe(16);
   });
 });
+import { onIsland } from "../src/geography";

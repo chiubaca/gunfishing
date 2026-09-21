@@ -2,7 +2,8 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { clone as cloneSkinned } from "three/addons/utils/SkeletonUtils.js";
-import { buildNature, meadowMaterial } from "./nature";
+import { buildNature, buildTerrain } from "./nature";
+import { BIOMES, biomeAt, buildExploration, createMinimap } from "./exploration";
 import { Run } from "./run";
 import {
   catchingPosition,
@@ -10,6 +11,8 @@ import {
   catchingTargetWidth,
   catchingWidth,
   LOCATIONS,
+  LANDMARK_OBSTACLES,
+  WATERFALL_OBSTACLES,
   MONSTERS,
   OBSTACLES,
   SPECIES,
@@ -19,6 +22,7 @@ import {
 import { gunStats } from "./economy";
 import type { Action, Gunfish, Monster, Role, Species, Vec } from "./types";
 import "./style.css";
+import { buildWaterscape } from "./waterscape";
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
 const assetLoader = new GLTFLoader();
@@ -30,6 +34,7 @@ app.innerHTML = `
       <div class="tools"><button id="arsenal-button">Arsenal <kbd>Tab</kbd></button><button id="help-button" aria-label="Show controls">?</button><button id="sound" aria-label="Toggle sound">Sound on</button></div>
     </header>
     <aside id="navigation"></aside><div id="fish-label"></div>
+    <aside id="exploration-map" aria-label="Exploration radar"><strong>ISLAND RADAR</strong><canvas id="minimap" width="220" height="220" aria-label="North-up map: red enemies, gold landmarks, blue fishing pools"></canvas><span id="radar-status"></span><small>● Enemies · ◆ Landmarks · ● Pools<br>Edge arrows: distant enemies</small><p id="discovery" role="status"></p></aside>
     <div id="reticle"><i></i></div><div id="notice" role="status"></div>
     <button id="mouse-capture" hidden><strong>Mouse released</strong><span>Click to capture aim · Esc releases</span></button>
     <section id="catch-meter" hidden aria-label="Catch timing">
@@ -60,6 +65,7 @@ app.innerHTML = `
   </main>`;
 const el = <T extends HTMLElement = HTMLElement>(id: string) =>
   document.getElementById(id) as T;
+const updateMinimap = createMinimap(el<HTMLCanvasElement>("minimap"), el("radar-status"), el("discovery"));
 const text = (id: string, value: string) => {
   if (el(id).textContent !== value) el(id).textContent = value;
 };
@@ -114,7 +120,7 @@ function persist() {
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xb9d9d2);
-scene.fog = new THREE.FogExp2(0xb9d9d2, 0.0045);
+scene.fog = new THREE.FogExp2(0xb9d9d2, 0.0028);
 const camera = new THREE.PerspectiveCamera(
   48,
   innerWidth / innerHeight,
@@ -189,8 +195,8 @@ function mesh(
   parent.add(m);
   return m;
 }
-const meadow = mesh(scene, boxGeometry, 0x718271, 0, -0.42, 0, WORLD_SIZE, 0.8, WORLD_SIZE);
-meadow.material = meadowMaterial();
+const terrainMeshes = buildTerrain(scene);
+buildExploration(scene);
 void buildNature(scene).catch((error: unknown) => {
   console.error("Nature scenery loading failed", error);
   el("save-warning").hidden = false;
@@ -202,20 +208,8 @@ const waterMaterial = new THREE.MeshStandardMaterial({
   metalness: 0.25,
   transparent: false,
 });
-const waterTime = { value: 0 };
-waterMaterial.onBeforeCompile = (shader) => {
-  shader.uniforms.waterTime = waterTime;
-  shader.vertexShader = shader.vertexShader.replace("#include <common>", "#include <common>\nvarying vec2 waterPosition;")
-    .replace("#include <worldpos_vertex>", "#include <worldpos_vertex>\nwaterPosition = (modelMatrix * vec4(transformed, 1.0)).xz;");
-  shader.fragmentShader = shader.fragmentShader.replace("#include <common>", "#include <common>\nuniform float waterTime;\nvarying vec2 waterPosition;")
-    .replace("#include <color_fragment>", `#include <color_fragment>
-float wave = sin(waterPosition.x * 2.8 + waterTime * 0.7) * sin(waterPosition.y * 3.5 - waterTime * 0.5);
-diffuseColor.rgb *= 0.96 + 0.04 * wave;`);
-};
-waterMaterial.onBeforeRender = () => { waterTime.value = performance.now() / 1000; };
-const waters: THREE.Mesh[] = [];
-const cameraObstacles: THREE.Object3D[] = [];
-const waterGeometry = new THREE.CircleGeometry(14, 64);
+const cameraObstacles: THREE.Object3D[] = [...terrainMeshes];
+const waters = buildWaterscape(scene, waterMaterial, cameraObstacles);
 const ringGeometry = new THREE.RingGeometry(0.93, 1, 48);
 const rippleMaterial = new THREE.MeshBasicMaterial({
   color: 0xdcf1da,
@@ -235,40 +229,7 @@ function ring(
   return m;
 }
 for (const [index, location] of LOCATIONS.entries()) {
-  if (location.region === "Sunken Quarry") {
-    const terrain = new THREE.PlaneGeometry(200, 200, 80, 80);
-    terrain.rotateX(-Math.PI / 2);
-    const vertices = terrain.getAttribute("position") as THREE.BufferAttribute;
-    for (let i = 0; i < vertices.count; i++)
-      vertices.setY(
-        i,
-        terrainHeight({
-          x: location.x + vertices.getX(i),
-          z: location.z + vertices.getZ(i),
-        }) + 0.025,
-      );
-    terrain.computeVertexNormals();
-    const bank = new THREE.Mesh(terrain, meadowMaterial());
-    bank.position.set(location.x, 0, location.z);
-    bank.receiveShadow = true;
-    scene.add(bank);
-    cameraObstacles.push(bank);
-  }
-  const shore = mesh(
-    scene,
-    new THREE.CylinderGeometry(16, 17, 0.2, 48),
-    0xaaa78a,
-    location.x,
-    0.02,
-    location.z,
-  );
-  shore.receiveShadow = true;
-  const water = new THREE.Mesh(waterGeometry, waterMaterial);
-  water.rotation.x = -Math.PI / 2;
-  water.position.set(location.x, 0.17, location.z);
-  water.receiveShadow = true;
-  scene.add(water);
-  waters.push(water);
+  if (index >= 6) continue;
   for (let j = 0; j < 44; j++) {
     const a = j * 2.399,
       radius = 15 + (j % 4) * 0.7;
@@ -280,7 +241,7 @@ for (const [index, location] of LOCATIONS.entries()) {
       boxGeometry,
       index < 2 ? 0x455e3c : 0x6a7154,
       x,
-      0.65,
+      terrainHeight({ x, z }) + 0.65,
       z,
       0.11,
       1 + (j % 3) * 0.3,
@@ -293,7 +254,7 @@ for (const [index, location] of LOCATIONS.entries()) {
       boxGeometry,
       0x766951,
       location.x + 3 + j * 0.8,
-      0.32,
+      terrainHeight({ x: location.x + 3 + j * 0.8, z: location.z + 14 }) + 0.32,
       location.z + 14,
       0.7,
       0.3,
@@ -303,11 +264,17 @@ for (const [index, location] of LOCATIONS.entries()) {
 }
 for (const [i, o] of OBSTACLES.entries()) {
   const ground = terrainHeight(o);
+    if (LANDMARK_OBSTACLES.includes(o) || WATERFALL_OBSTACLES.includes(o)) {
+    const collider = mesh(scene, boxGeometry, 0xffffff, o.x, ground + o.height / 2, o.z, o.width, o.height, o.depth);
+    collider.visible = false;
+    cameraObstacles.push(collider);
+    continue;
+  }
   cameraObstacles.push(
     mesh(
       scene,
       sphereGeometry,
-      i % 3 ? 0x64736b : 0x74756b,
+      biomeAt(o) === "snow" ? 0xa6c8dc : biomeAt(o) === "tropical" ? 0xd5aa78 : 0x708e78,
       o.x,
       ground + o.height / 2,
       o.z,
@@ -319,7 +286,7 @@ for (const [i, o] of OBSTACLES.entries()) {
   mesh(
     scene,
     sphereGeometry,
-    0x657d3b,
+    biomeAt(o) === "snow" ? 0xeef8ff : biomeAt(o) === "tropical" ? 0xf4d59a : 0x7dac50,
     o.x,
     ground + o.height * 0.83,
     o.z,
@@ -329,9 +296,9 @@ for (const [i, o] of OBSTACLES.entries()) {
   );
 }
 // Low, traversable causeways indicate the outer circuit and exposed central shortcuts.
-for (let i = 0; i < LOCATIONS.length; i++) {
+for (let i = 0; i < 6; i++) {
   const a = LOCATIONS[i],
-    b = LOCATIONS[(i + 1) % LOCATIONS.length];
+    b = LOCATIONS[(i + 1) % 6];
   const path = mesh(
     scene,
     boxGeometry,
@@ -876,7 +843,7 @@ canvas.addEventListener("pointerdown", (e) => {
   );
   updatePlacement();
   unlockAudio();
-  canvas.setPointerCapture(e.pointerId);
+  if (document.pointerLockElement !== canvas) canvas.setPointerCapture(e.pointerId);
   dragX = e.clientX;
   dragY = e.clientY;
   dragDistance = 0;
@@ -1604,6 +1571,7 @@ function renderWorld(time: number) {
   renderer.render(scene, camera);
 }
 function renderHud() {
+  updateMinimap(run.state, performance.now());
   const s = run.state,
     gun = s.arsenal.find((g) => g.id === s.slots[s.active]);
   updatePointerLock();
@@ -1693,12 +1661,12 @@ function renderHud() {
       interaction = `Hold E · ${t.health < t.maxHealth ? "Repair" : "Fuel"} · Durability ${Math.ceil(t.health)} / ${t.maxHealth} · Fuel ${Math.ceil(t.fuel)}s`;
   }
   text("interaction", interaction);
-  const nearest = [...LOCATIONS].sort(
+  const nearest = LOCATIONS.filter(l => !l.secret || s.completed.includes(`secret:${l.name}`)).sort(
     (a, b) => distance(s.player, a) - distance(s.player, b),
   );
   text(
     "region",
-    `${nearest[0].region.toUpperCase()} / ${nearest[0].exposed ? "EXPOSED HOTSPOT" : "SHELTERED WATER"}`,
+    `${BIOMES[biomeAt(s.player)].name.toUpperCase()} / ${nearest[0].exposed ? "EXPOSED HOTSPOT" : "SHELTERED WATER"}`,
   );
   const bearingText = (p: Vec) => {
     const delta =

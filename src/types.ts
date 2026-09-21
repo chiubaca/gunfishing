@@ -72,6 +72,7 @@ export interface Cache extends Vec {
   gunfish: Gunfish | null;
 }
 export interface Location extends Vec {
+  secret?: boolean;
   name: string;
   region: string;
   exposed: boolean;
@@ -100,6 +101,7 @@ export interface Hold {
 }
 export interface RunState {
   version: 1;
+  worldVersion?: number;
   seed: number;
   nextId: number;
   elapsed: number;
