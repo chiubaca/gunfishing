@@ -45,13 +45,13 @@ app.innerHTML = `
       <small id="catch-risk"></small>
     </section>
     <footer class="hud bottom"><div class="vitals"><span>VITALITY <strong id="health">100</strong></span><div class="health-track"><i id="health-fill"></i></div><span class="threat">THREAT <strong id="threat">12 m</strong></span><small id="power">GUNFISH POWER 0 / LOW</small></div>
-      <div class="guidance"><p id="prompt"></p><span id="interaction"></span><small id="mode-help">Click water to cast · F fishing · 1 / 2 draw</small></div>
+      <div class="guidance"><p id="prompt"></p><span id="interaction"></span><small id="mode-help">Click water to cast · F explore · 1 / 2 draw</small></div>
       <div class="kit"><div id="ammo">ROD READY</div><div id="slots"></div><small id="resource">0 upgrade resource · 2 / 8 supplies</small></div>
     </footer>
     <section id="arsenal" class="panel" hidden aria-label="Gunfish arsenal"><div class="panel-heading"><div><span class="eyebrow">EXPOSED TO THE WORLD</span><h2>Gunfish arsenal</h2></div><button id="close-arsenal">Close <kbd>Tab</kbd></button></div><p class="muted">Walk slowly. Time and monsters never stop here. Purchases and sacrifices are permanent.</p><div id="arsenal-content"></div></section>
     <section id="help" class="panel help" hidden><div class="panel-heading"><h2>Field guide</h2><button id="close-help">Close</button></div><p>Survive until dawn. Every Cast expands Threat for the rest of the Run. It lets existing monsters hear your fishing through cover; it never summons them.</p><dl>
       <dt>W A S D / Shift / Space</dt><dd>Move / sprint / jump. Sprint lowers your Gunfish.</dd>
-      <dt>F / 1 / 2 / Q</dt><dd>Fishing / draw Primary / draw Secondary / cancel immediately.</dd>
+       <dt>F / 1 / 2 / Q</dt><dd>Explore / draw Primary / draw Secondary / cancel immediately.</dd>
       <dt>Click water / arrows / hold R</dt><dd>Place the Lure beside a fish / gently tug / reel toward you. Alternate gentle tugs; don't land directly on a fish.</dd>
       <dt>E / click / tap the catch track</dt><dd>On a bite, a box swings across the track. Press when its center marker is inside the gold target. Land Tier + 2 hits. Two consecutive mistimed presses lose the fish; waiting never counts as a miss. The fish, line and sound also signal the target window.</dd>
        <dt>Mouse look / right mouse</dt><dd>Move to turn freely. Click to fire; hold for Auto Rifle. Hold right mouse for precision aim.</dd>
@@ -61,7 +61,7 @@ app.innerHTML = `
      </dl><p>Head toward a location marker to find more visible fish. Sheltered pools favor common catches. Exposed hotspots favor rarity. A Recovery marker shows the exact equipment from your last failure.</p><p class="muted">On touch screens: use the left thumbstick, drag the world to look, tap water to place, and use the right-side action buttons. The app resumes your current Run when reopened. This guide does not pause play.</p></section>
      <section id="welcome" class="overlay"><div class="intro"><span class="eyebrow">A SOLO SURVIVAL FIELD EXPERIMENT</span><h1>One more<br><em>cast.</em></h1><p>Fish for living guns. Hold your ground.<br>Make it to dawn, or leave something worth returning for.</p><button id="start" class="primary">Enter the waterlands <span>15 MINUTE RUN</span></button><small>WASD to move · Mouse to cast and fire · Headphones recommended</small></div><div class="intro-note">THE WATER GIVES.<br>THE WATER REMEMBERS.</div></section>
     <section id="results" class="overlay" hidden><div class="intro"><span class="eyebrow" id="result-eyebrow"></span><h1 id="result-title"></h1><p id="result-copy"></p><div id="result-stats"></div><button id="next" class="primary">Start the next Run</button></div></section>
-     <div id="touch" aria-label="Touch controls"><div class="move-controls"><div id="joystick" class="joystick" role="group" aria-label="Move joystick"><span id="joystick-knob" class="joystick-knob" aria-hidden="true"></span></div><button class="touch-sprint" data-key="ShiftLeft">Run</button></div><div class="touch-actions"><button data-touch="main" data-control="main" data-mode="both">Cast</button><button data-key="KeyE" data-control="interact" data-mode="both">Catch</button><button data-key="KeyR" data-control="reel" data-mode="both">Reel</button><button data-key="ArrowLeft" data-control="tug" data-mode="fishing">Tug L</button><button data-key="ArrowRight" data-control="tug" data-mode="fishing">Tug R</button><button data-key="Digit1" data-mode="shooting">Primary</button><button data-key="Digit2" data-mode="shooting">Secondary</button><button data-key="KeyF" data-control="mode" data-mode="both">Shoot</button><button data-key="KeyQ" data-control="cancel" data-mode="both">Cancel</button><button data-key="KeyV" data-mode="shooting">Rod</button><button data-key="KeyM" data-mode="shooting">Mount</button><button data-key="KeyB" data-mode="shooting">Beer</button><button data-key="Space" data-mode="both">Jump</button><button data-touch="aim" data-mode="shooting">Aim</button></div></div>
+     <div id="touch" aria-label="Touch controls"><div class="move-controls"><div id="joystick" class="joystick" role="group" aria-label="Move joystick"><span id="joystick-knob" class="joystick-knob" aria-hidden="true"></span></div><button class="touch-sprint" data-key="ShiftLeft">Run</button></div><div class="touch-actions"><button data-touch="main" data-control="main" data-mode="both">Cast</button><button data-key="KeyE" data-control="interact" data-mode="both">Catch</button><button data-key="KeyR" data-control="reel" data-mode="both">Reel</button><button data-key="ArrowLeft" data-control="tug" data-mode="fishing">Tug L</button><button data-key="ArrowRight" data-control="tug" data-mode="fishing">Tug R</button><button data-key="Digit1" data-mode="shooting">Primary</button><button data-key="Digit2" data-mode="shooting">Secondary</button><button data-key="KeyF" data-control="mode" data-mode="shooting">Explore</button><button data-key="KeyQ" data-control="cancel" data-mode="both">Cancel</button><button data-key="KeyV" data-mode="shooting">Rod</button><button data-key="KeyM" data-mode="shooting">Mount</button><button data-key="KeyB" data-mode="shooting">Beer</button><button data-key="Space" data-mode="both">Jump</button><button data-touch="aim" data-mode="shooting">Aim</button></div></div>
     <div id="save-warning" role="alert" hidden></div>
   </main>`;
 const el = <T extends HTMLElement = HTMLElement>(id: string) =>
@@ -753,7 +753,7 @@ function updateTouchControls() {
   if (main) main.textContent = mode === "shooting" ? "Fire" : castPhase === "catch" ? "Catch" : "Cast";
   if (interact) interact.textContent = "Collect";
   if (reel) reel.textContent = mode === "shooting" ? "Reload" : "Reel";
-  if (modeButton) modeButton.textContent = mode === "fishing" ? "Shoot" : "Fish";
+  if (modeButton) modeButton.textContent = "Explore";
 }
 function updateJoystick(clientX: number, clientY: number) {
   const bounds = joystick.getBoundingClientRect();
@@ -1718,8 +1718,8 @@ function renderHud() {
       : pointerLockSupported &&
           hasMouseInput &&
           document.pointerLockElement !== canvas
-        ? "Move to look · Click fire · Right mouse aim · F fish"
-        : "Mouse look · Click fire · Right mouse aim · F fish",
+        ? "Move to look · Click fire · Right mouse aim · F explore"
+        : "Mouse look · Click fire · Right mouse aim · F explore",
   );
   el("reticle").hidden =
     s.mode === "fishing" || s.mode === "returning" || s.arsenalOpen;

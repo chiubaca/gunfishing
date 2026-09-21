@@ -33,7 +33,7 @@ Click **Enter the waterlands** to spawn and start the clock. Place the Lure besi
 | Arrow keys / hold R      | Gentle directional tugs / reel toward yourself                      |
 | Click or E during a bite | Catch on the line snap                                              |
 | 1 / 2                    | Cancel and draw Primary / Secondary                                 |
-| Q / F                    | Emergency cancel / return to Fishing mode                           |
+| Q / F                    | Emergency cancel / return to Explore mode                           |
 | Escape                   | Cancel an active cast or close a panel                               |
 | Move mouse               | Look around in Combat mode, including vertical aim                  |
 | Left mouse / right mouse | Fire / precision aim; hold fire for Auto Rifle                      |
