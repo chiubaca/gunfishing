@@ -519,13 +519,20 @@ describe("Run survival boundary", () => {
     });
     run.step(0.02);
     run.act({ type: "catch" });
-    run.act({ type: "next" });
     expect(run.state.status).toBe("victory");
     expect(run.state.cast).toBeNull();
     expect(run.state.lineLinger).toBe(0);
     expect(run.state.arsenal).toHaveLength(0);
     expect(run.state.mounted).toHaveLength(0);
     expect(run.state.catches).toBe(0);
+  });
+  it("starts another Run after victory", () => {
+    const run = quiet({ elapsed: 900 });
+    run.step(0);
+    expect(run.state.status).toBe("victory");
+    run.act({ type: "next" });
+    expect(run.state.status).toBe("playing");
+    expect(run.state.elapsed).toBe(0);
   });
   it("locks death before the deadline and replaces the cache with only active equipment", () => {
     const held = gun();

@@ -1759,7 +1759,8 @@ function renderHud() {
     s.resultTime >= (s.status === "failure" ? 1.8 : 0.7)
   ) {
     el("results").hidden = false;
-    el("next").hidden = s.status === "victory";
+    el("next").hidden = false;
+    text("next", s.status === "victory" ? "Start another Run" : "Start the next Run");
     text(
       "result-eyebrow",
       s.status === "victory"

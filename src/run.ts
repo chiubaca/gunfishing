@@ -391,7 +391,7 @@ export class Run {
 
   act(action: Action): void {
     const s = this.state;
-    if (action.type === "next" && s.status === "failure") {
+    if (action.type === "next" && (s.status === "failure" || s.status === "victory")) {
       this.state = new Run({
         seed: s.seed,
         scenario: { ...this.scenario, state: undefined, cache: s.cache },
