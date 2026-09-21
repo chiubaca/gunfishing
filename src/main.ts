@@ -61,7 +61,7 @@ app.innerHTML = `
      </dl><p>Head toward a location marker to find more visible fish. Sheltered pools favor common catches. Exposed hotspots favor rarity. A Recovery marker shows the exact equipment from your last failure.</p><p class="muted">On touch screens: use the left thumbstick, drag the world to look, tap water to place, and use the right-side action buttons. The app resumes your current Run when reopened. This guide does not pause play.</p></section>
      <section id="welcome" class="overlay"><div class="intro"><span class="eyebrow">A SOLO SURVIVAL FIELD EXPERIMENT</span><h1>One more<br><em>cast.</em></h1><p>Fish for living guns. Hold your ground.<br>Make it to dawn, or leave something worth returning for.</p><button id="start" class="primary">Enter the waterlands <span>15 MINUTE RUN</span></button><small>WASD to move · Mouse to cast and fire · Headphones recommended</small></div><div class="intro-note">THE WATER GIVES.<br>THE WATER REMEMBERS.</div></section>
     <section id="results" class="overlay" hidden><div class="intro"><span class="eyebrow" id="result-eyebrow"></span><h1 id="result-title"></h1><p id="result-copy"></p><div id="result-stats"></div><button id="next" class="primary">Start the next Run</button></div></section>
-     <div id="touch" aria-label="Touch controls"><div class="move-controls"><div id="joystick" class="joystick" role="group" aria-label="Move joystick"><span id="joystick-knob" class="joystick-knob" aria-hidden="true"></span></div><button class="touch-sprint" data-key="ShiftLeft">Run</button></div><div class="touch-actions"><button data-touch="main" data-control="main" data-mode="both">Cast</button><button data-key="KeyE" data-control="interact" data-mode="both">Catch</button><button data-key="KeyR" data-control="reel" data-mode="both">Reel</button><button data-key="ArrowLeft" data-control="tug" data-mode="fishing">Tug L</button><button data-key="ArrowRight" data-control="tug" data-mode="fishing">Tug R</button><button data-key="Digit1" data-mode="shooting">Primary</button><button data-key="Digit2" data-mode="shooting">Secondary</button><button data-key="KeyF" data-mode="shooting">Fish</button><button data-key="KeyQ" data-control="cancel" data-mode="both">Cancel</button><button data-key="KeyV" data-mode="shooting">Rod</button><button data-key="KeyM" data-mode="shooting">Mount</button><button data-key="KeyB" data-mode="shooting">Beer</button><button data-key="Space" data-mode="both">Jump</button><button data-touch="aim" data-mode="shooting">Aim</button></div></div>
+     <div id="touch" aria-label="Touch controls"><div class="move-controls"><div id="joystick" class="joystick" role="group" aria-label="Move joystick"><span id="joystick-knob" class="joystick-knob" aria-hidden="true"></span></div><button class="touch-sprint" data-key="ShiftLeft">Run</button></div><div class="touch-actions"><button data-touch="main" data-control="main" data-mode="both">Cast</button><button data-key="KeyE" data-control="interact" data-mode="both">Catch</button><button data-key="KeyR" data-control="reel" data-mode="both">Reel</button><button data-key="ArrowLeft" data-control="tug" data-mode="fishing">Tug L</button><button data-key="ArrowRight" data-control="tug" data-mode="fishing">Tug R</button><button data-key="Digit1" data-mode="shooting">Primary</button><button data-key="Digit2" data-mode="shooting">Secondary</button><button data-key="KeyF" data-control="mode" data-mode="both">Shoot</button><button data-key="KeyQ" data-control="cancel" data-mode="both">Cancel</button><button data-key="KeyV" data-mode="shooting">Rod</button><button data-key="KeyM" data-mode="shooting">Mount</button><button data-key="KeyB" data-mode="shooting">Beer</button><button data-key="Space" data-mode="both">Jump</button><button data-touch="aim" data-mode="shooting">Aim</button></div></div>
     <div id="save-warning" role="alert" hidden></div>
   </main>`;
 const el = <T extends HTMLElement = HTMLElement>(id: string) =>
@@ -722,25 +722,38 @@ let joystickPointerId: number | null = null,
   joystickY = 0;
 function updateTouchControls() {
   const s = run.state;
-  const mode = s.mode === "fishing" ? "fishing" : "shooting";
+  const mode =
+    s.mode === "fishing"
+      ? "fishing"
+      : s.mode === "combat" || s.mode === "drawing"
+        ? "shooting"
+        : "transition";
   const castPhase = s.cast?.phase;
   el("touch").dataset.mode = mode;
   for (const button of touchButtons) {
     const control = button.dataset.control;
     const buttonMode = button.dataset.mode;
-    let visible = buttonMode === "both" || buttonMode === mode;
-    if (control === "main") visible = mode === "shooting" || !s.cast || castPhase === "catch";
-    if (control === "reel") visible = mode === "shooting" || castPhase === "lure";
+    let visible =
+      buttonMode === "both" ? mode !== "transition" : buttonMode === mode;
+    if (control === "main")
+      visible =
+        mode === "shooting" ||
+        (mode === "fishing" && (!s.cast || castPhase === "catch"));
+    if (control === "reel")
+      visible = mode === "shooting" || (mode === "fishing" && castPhase === "lure");
     if (control === "tug") visible = mode === "fishing" && castPhase === "lure";
+    if (control === "interact") visible = mode !== "transition" && !s.cast;
     if (control === "cancel") visible = !!s.cast || s.mode === "drawing";
     button.hidden = !visible;
   }
   const main = el("touch").querySelector<HTMLButtonElement>('[data-control="main"]');
   const interact = el("touch").querySelector<HTMLButtonElement>('[data-control="interact"]');
   const reel = el("touch").querySelector<HTMLButtonElement>('[data-control="reel"]');
+  const modeButton = el("touch").querySelector<HTMLButtonElement>('[data-control="mode"]');
   if (main) main.textContent = mode === "shooting" ? "Fire" : castPhase === "catch" ? "Catch" : "Cast";
-  if (interact) interact.textContent = mode === "fishing" && castPhase === "catch" ? "Catch" : "Collect";
+  if (interact) interact.textContent = "Collect";
   if (reel) reel.textContent = mode === "shooting" ? "Reload" : "Reel";
+  if (modeButton) modeButton.textContent = mode === "fishing" ? "Shoot" : "Fish";
 }
 function updateJoystick(clientX: number, clientY: number) {
   const bounds = joystick.getBoundingClientRect();

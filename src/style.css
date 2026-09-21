@@ -1237,6 +1237,9 @@ select {
     left: max(8px, env(safe-area-inset-left));
     right: max(8px, env(safe-area-inset-right));
     bottom: max(7px, env(safe-area-inset-bottom));
+    width: auto;
+    max-width: none;
+    opacity: 1;
     gap: 8px;
     align-items: end;
   }
