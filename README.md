@@ -56,6 +56,7 @@ On touch screens, tap water to place the Lure, drag to look, and use the onscree
 - Permanent Mounted Gunfish sacrifice, autonomous evolved fire, durability, repair-first servicing, and Beer fuel.
 - Six fishing locations across Reedbeds, Flood Channel, and Sunken Quarry; outer routes, central shortcuts, and traversable Quarry slopes.
 - Newest-only Recovery caches, exact equipment identity, interruptible reclaim, failure results, explicit next Run, and immediate victory at the deadline.
+- A continuous dawn-to-dawn sky cycle over each 15-minute Run: warm sunrises, blue daylight, pink-gold sunsets, drifting clouds, moonlight, twinkling stars, and a procedural Milky Way. World lighting, fog, and water reflections follow the sky; the cycle resumes with saved Run time.
 
 ## Persistence
 
@@ -71,6 +72,7 @@ The clock advances with visible-tab elapsed time, including slow frames. Hidden 
 - `src/content.ts`: authored world, terrain height, baseline tables, legal mixes, and shared catch timing cues.
 - `src/economy.ts`: irreversible purchases, donor transactions, identity power, and physical reward generation.
 - `src/main.ts`: Three.js world, cameras, keyboard/touch input, audio, HUD, and browser persistence.
+- `src/sky.ts`: procedural celestial sky and Run-synchronized sun, moon, ambient, fog, and water lighting.
 - `tests/run.test.ts`: deterministic black-box scenarios through `Run`, including exact timing boundaries and multi-Run recovery.
 
 `new Run({ seed, scenario })` accepts authored initial state and optional line-of-sight/damage callbacks. Tests use `act`, `step`, `view`, `save`, `content`, `surfaceHeight`, and `previewEvolution`. There are no separate subsystem test seams or production debug controls. Times are in seconds and positions in metres. Player `y` is jump height relative to terrain; projectile `y` is world-space height.

@@ -52,10 +52,12 @@ export function createWaterSurface(geometries: THREE.BufferGeometry[]) {
   water.rotation.x = -Math.PI / 2;
   water.position.y = 0.17;
   const shader = water.material;
+  shader.uniforms.daylight = { value: 1 };
   shader.uniforms.shoreline = { value: shorelineTexture() };
   shader.fragmentShader = shader.fragmentShader
     .replace("uniform float alpha;", `uniform float alpha;
       uniform sampler2D shoreline;
+      uniform float daylight;
       // Gerstner phase speed sqrt(g/k), with independent wind directions.
       vec2 waveSlope(vec2 p, vec2 direction, float wavelength, float steepness) {
         float k = 6.2831853 / wavelength;
@@ -84,8 +86,8 @@ export function createWaterSurface(geometries: THREE.BufferGeometry[]) {
       float caustic = pow(max(0.0, ribbons * 0.5), 9.0) * (1.0 - depth) * farFade;
       float foam = (1.0 - smoothstep(0.02, 0.25, depth))
         * smoothstep(0.25, 0.85, sin(p.x * 2.1 + p.y * 1.6 + time * 1.3) * 0.5 + 0.5);
-      vec3 outgoingLight = mix(albedo + caustic * vec3(0.16, 0.28, 0.19)
-        + specularLight * 0.22, vec3(0.65, 0.85, 0.78), foam * 0.42);
+      vec3 outgoingLight = mix(albedo * mix(0.2, 1.0, daylight) + caustic * vec3(0.16, 0.28, 0.19) * daylight
+        + specularLight * 0.22, vec3(0.65, 0.85, 0.78) * mix(0.22, 1.0, daylight), foam * 0.42);
     `);
   const reflect = water.onBeforeRender;
   water.onBeforeRender = function (...args) {

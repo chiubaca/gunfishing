@@ -23,6 +23,7 @@ import { gunStats } from "./economy";
 import type { Action, Gunfish, Monster, Role, Species, Vec } from "./types";
 import "./style.css";
 import { buildWaterscape } from "./waterscape";
+import { createSky } from "./sky";
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
 const assetLoader = new GLTFLoader();
@@ -150,7 +151,6 @@ renderer.domElement.setAttribute(
   "aria-label",
   "3D world. Click water to cast; click Combat to capture mouse aiming.",
 );
-scene.add(new THREE.HemisphereLight(0xe4f4e9, 0x41584b, 2.3));
 const sun = new THREE.DirectionalLight(0xffddb0, 3.1);
 sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
@@ -161,6 +161,7 @@ sun.shadow.camera.bottom = -65;
 sun.shadow.camera.far = 180;
 sun.shadow.bias = -0.001;
 scene.add(sun, sun.target);
+const sky = createSky(scene, sun);
 const materials = new Map<number, THREE.MeshStandardMaterial>();
 function material(color: number) {
   if (!materials.has(color))
@@ -1226,8 +1227,7 @@ function renderWorld(time: number) {
   camera.lookAt(aimPoint);
   camera.fov = s.aiming ? 40 : 48;
   camera.updateProjectionMatrix();
-  sun.position.set(p.x - 35, ground + 80, p.z - 35);
-  sun.target.position.set(p.x, ground, p.z);
+  sky.update(s.elapsed, player.position, waters);
   threatRing.visible = !!s.cast;
   const detecting = s.cast
     ? s.monsters
