@@ -96,16 +96,13 @@ kbd {
 #game:has(#welcome:not([hidden])),
 #game:has(#welcome:not([hidden])) *,
 #game:has(#results:not([hidden])),
-#game:has(#results:not([hidden])) *,
-#game:has(#mouse-capture:not([hidden])),
-#game:has(#mouse-capture:not([hidden])) * {
+#game:has(#results:not([hidden])) * {
   cursor: auto;
 }
 #game:has(#arsenal:not([hidden])) button,
 #game:has(#help:not([hidden])) button,
 #game:has(#welcome:not([hidden])) button,
-#game:has(#results:not([hidden])) button,
-#game:has(#mouse-capture:not([hidden])) button {
+#game:has(#results:not([hidden])) button {
   cursor: pointer;
 }
 canvas {
@@ -335,34 +332,6 @@ header.hud {
   font-size: 25px;
   text-shadow: 0 2px 8px #122f27;
   pointer-events: none;
-}
-#mouse-capture {
-  position: absolute;
-  left: 50%;
-  top: calc(50% + 42px);
-  z-index: 8;
-  transform: translateX(-50%);
-  min-width: 230px;
-  padding: 11px 16px;
-  border-color: #dbc98f88;
-  background: #102f2bea;
-  box-shadow: 0 8px 30px #071c1966;
-  text-align: center;
-}
-#mouse-capture strong,
-#mouse-capture span {
-  display: block;
-}
-#mouse-capture strong {
-  color: #f0dda8;
-  font: 400 15px Georgia, serif;
-}
-#mouse-capture span {
-  margin-top: 5px;
-  color: #b8cbb8;
-  font-size: 9px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 #catch-meter {
   position: absolute;
@@ -992,22 +961,49 @@ select {
     padding: 9px 4px;
     min-height: 36px;
   }
-  .dpad {
+  .move-controls {
     width: 120px;
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     gap: 4px;
-    align-content: end;
     flex-shrink: 0;
   }
-  .dpad button:first-child {
-    grid-column: 2;
+  .joystick {
+    position: relative;
+    width: 100px;
+    height: 100px;
+    border: 1px solid #d8e4ca55;
+    border-radius: 50%;
+    background: radial-gradient(circle at 50% 45%, #315d4d99, #102e2bb8 70%);
+    box-shadow: inset 0 0 0 8px #0d292766, 0 5px 16px #071c1955;
+    pointer-events: auto;
+    touch-action: none;
+    user-select: none;
   }
-  .dpad button:nth-child(2) {
-    grid-column: 1;
+  .joystick:after {
+    content: "";
+    position: absolute;
+    inset: 25%;
+    border: 1px solid #d8e4ca28;
+    border-radius: 50%;
+    pointer-events: none;
   }
-  .dpad button:last-child {
-    grid-column: 1/4;
+  .joystick-knob {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 42px;
+    height: 42px;
+    border: 1px solid #f3e1a8aa;
+    border-radius: 50%;
+    background: #bcae78cc;
+    box-shadow: 0 3px 9px #071c1988;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+  }
+  .touch-sprint {
+    width: 100%;
   }
   .touch-actions {
     display: grid;
@@ -1075,5 +1071,201 @@ select {
   }
   .intro > small {
     margin-top: 10px;
+  }
+}
+
+#orientation-prompt {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: #0b292cf2;
+  text-align: center;
+}
+.orientation-card {
+  max-width: 300px;
+}
+.orientation-icon {
+  display: block;
+  color: #e1c38e;
+  font-size: 42px;
+  line-height: 1;
+  margin-bottom: 20px;
+}
+.orientation-card h2 {
+  font: 400 28px/1.1 Georgia, serif;
+  margin: 10px 0;
+}
+.orientation-card p {
+  color: #c3d0bc;
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+@media (pointer: coarse) and (orientation: portrait) {
+  #orientation-prompt {
+    display: flex;
+  }
+}
+
+@media (pointer: coarse) and (orientation: landscape) {
+  .vignette {
+    background:
+      linear-gradient(180deg, #0c272c44, transparent 23%, transparent 78%, #0b252955),
+      radial-gradient(ellipse, transparent 58%, #173f3918);
+  }
+  header.hud {
+    top: max(8px, env(safe-area-inset-top));
+  }
+  .hud {
+    left: max(8px, env(safe-area-inset-left));
+    right: max(8px, env(safe-area-inset-right));
+  }
+  .brand {
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    padding-top: 3px;
+  }
+  .brand span,
+  .clock span {
+    display: none;
+  }
+  .clock {
+    top: 0;
+  }
+  .clock strong {
+    font-size: 22px;
+  }
+  .tools {
+    gap: 3px;
+  }
+  .tools button {
+    padding: 5px 7px;
+    font-size: 8px;
+  }
+  #exploration-map {
+    top: 46px;
+    right: max(8px, env(safe-area-inset-right));
+    width: 96px;
+    padding: 4px;
+    border-width: 1px;
+    border-radius: 12px;
+  }
+  #exploration-map strong {
+    font-size: 7px;
+    letter-spacing: 0.12em;
+  }
+  #minimap {
+    width: 84px;
+    height: 84px;
+    margin: 2px auto;
+  }
+  #radar-status {
+    font-size: 8px;
+  }
+  #exploration-map small,
+  #discovery,
+  #navigation {
+    display: none;
+  }
+  #notice {
+    top: 28%;
+    font-size: 17px;
+  }
+  #fish-label {
+    font-size: 9px;
+    padding: 3px 6px;
+  }
+  .bottom {
+    left: max(8px, env(safe-area-inset-left));
+    right: max(8px, env(safe-area-inset-right));
+    bottom: calc(104px + env(safe-area-inset-bottom));
+    gap: 8px;
+  }
+  .vitals {
+    width: 108px;
+  }
+  .vitals > span {
+    font-size: 8px;
+  }
+  .vitals strong {
+    font-size: 11px;
+  }
+  .health-track {
+    height: 3px;
+    margin: 4px 0 7px;
+  }
+  .vitals small,
+  #power,
+  #slots,
+  #resource {
+    display: none;
+  }
+  .kit {
+    min-width: 0;
+    max-width: 115px;
+  }
+  #ammo {
+    font-size: 15px;
+  }
+  .guidance {
+    position: fixed;
+    left: 50%;
+    right: auto;
+    bottom: calc(104px + env(safe-area-inset-bottom));
+    width: min(42vw, 290px);
+    max-width: none;
+    padding: 0;
+    transform: translateX(-50%);
+  }
+  #prompt {
+    font-size: 11px;
+    margin-bottom: 2px;
+  }
+  #interaction {
+    font-size: 9px;
+    margin-bottom: 0;
+  }
+  .guidance small {
+    display: none;
+  }
+  #touch {
+    left: max(8px, env(safe-area-inset-left));
+    right: max(8px, env(safe-area-inset-right));
+    bottom: max(7px, env(safe-area-inset-bottom));
+    gap: 8px;
+    align-items: end;
+  }
+  #touch button {
+    min-height: 32px;
+    padding: 5px 3px;
+    border-radius: 8px;
+    font-size: 8px;
+    background: #173a33b8;
+  }
+  .move-controls {
+    width: 96px;
+    gap: 2px;
+  }
+  .joystick {
+    width: 74px;
+    height: 74px;
+  }
+  .joystick-knob {
+    width: 32px;
+    height: 32px;
+  }
+  .touch-actions {
+    max-width: 250px;
+    gap: 2px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .touch-actions button[data-touch="main"],
+  .touch-actions button[data-touch="aim"] {
+    grid-column: span 2;
   }
 }

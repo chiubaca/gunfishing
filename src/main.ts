@@ -30,14 +30,14 @@ const assetLoader = new GLTFLoader();
 app.innerHTML = `
   <main id="game" aria-label="Gunfishers survival game">
     <div id="viewport"></div><div class="vignette"></div>
+    <section id="orientation-prompt" aria-label="Landscape orientation recommended"><div class="orientation-card"><span class="orientation-icon" aria-hidden="true">↔</span><span class="eyebrow">WIDER VIEW RECOMMENDED</span><h2>Turn your device sideways</h2><p>Gunfishers is designed to play in landscape.</p></div></section>
     <header class="hud"><div class="brand">GUNFISHERS<span id="region">ONE MORE CAST</span></div>
       <div class="clock"><span id="phase">FIRST LIGHT</span><strong id="clock">15:00</strong></div>
-      <div class="tools"><button id="arsenal-button">Arsenal <kbd>Tab</kbd></button><button id="help-button" aria-label="Show controls">?</button><button id="sound" aria-label="Toggle sound">Sound on</button></div>
+       <div class="tools"><button id="arsenal-button">Arsenal <kbd>Tab</kbd></button><button id="map-toggle" aria-label="Toggle island radar" aria-pressed="true">Map</button><button id="help-button" aria-label="Show controls">?</button><button id="sound" aria-label="Toggle sound">Sound on</button></div>
     </header>
     <aside id="navigation"></aside><div id="fish-label"></div>
     <aside id="exploration-map" aria-label="Exploration radar"><strong>ISLAND RADAR</strong><canvas id="minimap" width="220" height="220" aria-label="North-up map: red enemies, gold landmarks, blue fishing pools"></canvas><span id="radar-status"></span><small>● Enemies · ◆ Landmarks · ● Pools<br>Edge arrows: distant enemies</small><p id="discovery" role="status"></p></aside>
-    <div id="reticle"><i></i></div><div id="notice" role="status"></div>
-    <button id="mouse-capture" hidden><strong>Mouse released</strong><span>Click to capture aim · Esc releases</span></button>
+     <div id="reticle"><i></i></div><div id="notice" role="status"></div>
     <section id="catch-meter" hidden aria-label="Catch timing">
       <div class="catch-heading"><strong id="catch-cue" role="status"></strong><span id="catch-progress"></span></div>
       <button id="catch-track" aria-label="Catch fish" aria-describedby="catch-instruction catch-risk"><span class="catch-rail" aria-hidden="true"><span id="catch-target"></span><span class="catch-midpoint"></span><span id="catch-box"><i></i></span></span></button>
@@ -54,14 +54,14 @@ app.innerHTML = `
       <dt>F / 1 / 2 / Q</dt><dd>Fishing / draw Primary / draw Secondary / cancel immediately.</dd>
       <dt>Click water / arrows / hold R</dt><dd>Place the Lure beside a fish / gently tug / reel toward you. Alternate gentle tugs; don't land directly on a fish.</dd>
       <dt>E / click / tap the catch track</dt><dd>On a bite, a box swings across the track. Press when its center marker is inside the gold target. Land Tier + 2 hits. Two consecutive mistimed presses lose the fish; waiting never counts as a miss. The fish, line and sound also signal the target window.</dd>
-      <dt>Mouse look / right mouse</dt><dd>Click Combat to capture the mouse, then move freely to turn. Click to fire; hold for Auto Rifle. Esc releases the mouse.</dd>
+       <dt>Mouse look / right mouse</dt><dd>Move to turn freely. Click to fire; hold for Auto Rifle. Hold right mouse for precision aim.</dd>
       <dt>R / V</dt><dd>Reload / committed Rod attack, even without ammunition.</dd>
       <dt>Hold E / hold M / hold B</dt><dd>Collect or service / sacrifice active Gunfish as a defender / drink Beer.</dd>
       <dt>Tab</dt><dd>Assign slots, unpack ammo bundles, upgrade or merge same-species Gunfish.</dd>
-    </dl><p>Head toward a location marker to find more visible fish. Sheltered pools favor common catches. Exposed hotspots favor rarity. A Recovery marker shows the exact equipment from your last failure.</p><p class="muted">On touch screens: use the direction pad, drag the world to look, tap water to place, and use the action keys. The app resumes your current Run when reopened. This guide does not pause play.</p></section>
-    <section id="welcome" class="overlay"><div class="intro"><span class="eyebrow">A SOLO SURVIVAL FIELD EXPERIMENT</span><h1>One more<br><em>cast.</em></h1><p>Fish for living guns. Hold your ground.<br>Make it to dawn, or leave something worth returning for.</p><button id="start" class="primary">Enter the waterlands <span>15 MINUTE RUN</span></button><small>WASD to move · Mouse to cast and fire · Headphones recommended</small></div><div class="intro-note">THE WATER GIVES.<br>THE WATER REMEMBERS.</div></section>
+     </dl><p>Head toward a location marker to find more visible fish. Sheltered pools favor common catches. Exposed hotspots favor rarity. A Recovery marker shows the exact equipment from your last failure.</p><p class="muted">On touch screens: use the left thumbstick, drag the world to look, tap water to place, and use the right-side action buttons. The app resumes your current Run when reopened. This guide does not pause play.</p></section>
+     <section id="welcome" class="overlay"><div class="intro"><span class="eyebrow">A SOLO SURVIVAL FIELD EXPERIMENT</span><h1>One more<br><em>cast.</em></h1><p>Fish for living guns. Hold your ground.<br>Make it to dawn, or leave something worth returning for.</p><button id="start" class="primary">Enter the waterlands <span>15 MINUTE RUN</span></button><small>WASD to move · Mouse to cast and fire · Headphones recommended</small></div><div class="intro-note">THE WATER GIVES.<br>THE WATER REMEMBERS.</div></section>
     <section id="results" class="overlay" hidden><div class="intro"><span class="eyebrow" id="result-eyebrow"></span><h1 id="result-title"></h1><p id="result-copy"></p><div id="result-stats"></div><button id="next" class="primary">Start the next Run</button></div></section>
-    <div id="touch"><div class="dpad"><button data-key="KeyW" aria-label="Move forward">W</button><button data-key="KeyA" aria-label="Move left">A</button><button data-key="KeyS" aria-label="Move backward">S</button><button data-key="KeyD" aria-label="Move right">D</button><button data-key="ShiftLeft">Sprint</button></div><div class="touch-actions"><button data-touch="main">Cast / Fire</button><button data-key="KeyE">Catch / Collect</button><button data-key="KeyR">Reel / Reload</button><button data-key="ArrowLeft">Tug L</button><button data-key="ArrowRight">Tug R</button><button data-key="Digit1">Primary</button><button data-key="Digit2">Secondary</button><button data-key="KeyF">Fish</button><button data-key="KeyQ">Cancel</button><button data-key="KeyV">Rod</button><button data-key="KeyM">Mount</button><button data-key="KeyB">Beer</button><button data-key="Space">Jump</button><button data-touch="aim">Aim</button></div></div>
+     <div id="touch" aria-label="Touch controls"><div class="move-controls"><div id="joystick" class="joystick" role="group" aria-label="Move joystick"><span id="joystick-knob" class="joystick-knob" aria-hidden="true"></span></div><button class="touch-sprint" data-key="ShiftLeft">Run</button></div><div class="touch-actions"><button data-touch="main" data-control="main" data-mode="both">Cast</button><button data-key="KeyE" data-control="interact" data-mode="both">Catch</button><button data-key="KeyR" data-control="reel" data-mode="both">Reel</button><button data-key="ArrowLeft" data-control="tug" data-mode="fishing">Tug L</button><button data-key="ArrowRight" data-control="tug" data-mode="fishing">Tug R</button><button data-key="Digit1" data-mode="shooting">Primary</button><button data-key="Digit2" data-mode="shooting">Secondary</button><button data-key="KeyF" data-mode="shooting">Fish</button><button data-key="KeyQ" data-control="cancel" data-mode="both">Cancel</button><button data-key="KeyV" data-mode="shooting">Rod</button><button data-key="KeyM" data-mode="shooting">Mount</button><button data-key="KeyB" data-mode="shooting">Beer</button><button data-key="Space" data-mode="both">Jump</button><button data-touch="aim" data-mode="shooting">Aim</button></div></div>
     <div id="save-warning" role="alert" hidden></div>
   </main>`;
 const el = <T extends HTMLElement = HTMLElement>(id: string) =>
@@ -149,7 +149,7 @@ renderer.toneMappingExposure = 1.1;
 el("viewport").append(renderer.domElement);
 renderer.domElement.setAttribute(
   "aria-label",
-  "3D world. Click water to cast; click Combat to capture mouse aiming.",
+  "3D world. Click water to cast; click to fire in combat.",
 );
 const sun = new THREE.DirectionalLight(0xffddb0, 3.1);
 sun.castShadow = true;
@@ -712,6 +712,66 @@ function mainAction() {
   else if (s.mode === "combat" || s.mode === "drawing")
     action({ type: "fire" });
 }
+const touchButtons = [
+  ...document.querySelectorAll<HTMLButtonElement>("#touch .touch-actions button"),
+];
+const joystick = el("joystick"),
+  joystickKnob = el("joystick-knob");
+let joystickPointerId: number | null = null,
+  joystickX = 0,
+  joystickY = 0;
+function updateTouchControls() {
+  const s = run.state;
+  const mode = s.mode === "fishing" ? "fishing" : "shooting";
+  const castPhase = s.cast?.phase;
+  el("touch").dataset.mode = mode;
+  for (const button of touchButtons) {
+    const control = button.dataset.control;
+    const buttonMode = button.dataset.mode;
+    let visible = buttonMode === "both" || buttonMode === mode;
+    if (control === "main") visible = mode === "shooting" || !s.cast || castPhase === "catch";
+    if (control === "reel") visible = mode === "shooting" || castPhase === "lure";
+    if (control === "tug") visible = mode === "fishing" && castPhase === "lure";
+    if (control === "cancel") visible = !!s.cast || s.mode === "drawing";
+    button.hidden = !visible;
+  }
+  const main = el("touch").querySelector<HTMLButtonElement>('[data-control="main"]');
+  const interact = el("touch").querySelector<HTMLButtonElement>('[data-control="interact"]');
+  const reel = el("touch").querySelector<HTMLButtonElement>('[data-control="reel"]');
+  if (main) main.textContent = mode === "shooting" ? "Fire" : castPhase === "catch" ? "Catch" : "Cast";
+  if (interact) interact.textContent = mode === "fishing" && castPhase === "catch" ? "Catch" : "Collect";
+  if (reel) reel.textContent = mode === "shooting" ? "Reload" : "Reel";
+}
+function updateJoystick(clientX: number, clientY: number) {
+  const bounds = joystick.getBoundingClientRect();
+  const radius = Math.max(1, Math.min(bounds.width, bounds.height) / 2 - joystickKnob.offsetWidth / 2);
+  const dx = clientX - (bounds.left + bounds.width / 2),
+    dy = clientY - (bounds.top + bounds.height / 2),
+    length = Math.hypot(dx, dy),
+    scale = Math.min(1, radius / Math.max(1, length)),
+    offsetX = dx * scale,
+    offsetY = dy * scale;
+  joystickX = offsetX / radius;
+  joystickY = -offsetY / radius;
+  joystickKnob.style.transform = `translate(${offsetX}px, ${offsetY}px) translate(-50%, -50%)`;
+}
+function resetJoystick() {
+  joystickPointerId = null;
+  joystickX = 0;
+  joystickY = 0;
+  joystickKnob.style.transform = "translate(-50%, -50%)";
+}
+joystick.addEventListener("pointerdown", (e) => {
+  e.preventDefault();
+  joystickPointerId = e.pointerId;
+  joystick.setPointerCapture(e.pointerId);
+  updateJoystick(e.clientX, e.clientY);
+});
+joystick.addEventListener("pointermove", (e) => {
+  if (e.pointerId === joystickPointerId) updateJoystick(e.clientX, e.clientY);
+});
+for (const event of ["pointerup", "pointercancel", "lostpointercapture"])
+  joystick.addEventListener(event, resetJoystick);
 el("catch-track").addEventListener("pointerdown", (e) => {
   e.preventDefault();
   e.stopPropagation();
@@ -790,6 +850,7 @@ function clearInput() {
   firing = false;
   aiming = false;
   dragging = false;
+  resetJoystick();
   action({ type: "release" });
 }
 addEventListener("blur", clearInput);
@@ -823,17 +884,15 @@ function requestCombatPointerLock() {
   if (!canCaptureMouse() || document.pointerLockElement === canvas) return;
   void canvas.requestPointerLock().catch(() => {});
 }
-function updatePointerLock() {
+function updatePointerLockState() {
   const locked = document.pointerLockElement === canvas;
   if (locked && !canCaptureMouse()) document.exitPointerLock();
-  el("mouse-capture").hidden = locked || !canCaptureMouse();
 }
 document.addEventListener("pointerlockchange", () => {
   if (document.pointerLockElement !== canvas) clearInput();
-  updatePointerLock();
+  updatePointerLockState();
 });
-document.addEventListener("pointerlockerror", updatePointerLock);
-el("mouse-capture").onclick = requestCombatPointerLock;
+document.addEventListener("pointerlockerror", updatePointerLockState);
 canvas.addEventListener("contextmenu", (e) => e.preventDefault());
 canvas.addEventListener("pointerdown", (e) => {
   if (!started || run.state.arsenalOpen) return;
@@ -862,7 +921,7 @@ canvas.addEventListener("pointerdown", (e) => {
 canvas.addEventListener("pointermove", (e) => {
   if (e.pointerType === "mouse" && !hasMouseInput) {
     hasMouseInput = true;
-    updatePointerLock();
+    updatePointerLockState();
   }
   hasPointer = true;
   pointer.set(
@@ -937,6 +996,13 @@ el("start").onclick = () => {
   persist();
 };
 el("arsenal-button").onclick = () => action({ type: "arsenal" });
+let mapOpen = true;
+el("map-toggle").onclick = () => {
+  mapOpen = !mapOpen;
+  el("exploration-map").hidden = !mapOpen;
+  el("map-toggle").setAttribute("aria-pressed", `${mapOpen}`);
+  text("map-toggle", mapOpen ? "Map" : "Map off");
+};
 el("close-arsenal").onclick = () => {
   action({ type: "arsenal", open: false });
   requestCombatPointerLock();
@@ -1574,7 +1640,8 @@ function renderHud() {
   updateMinimap(run.state, performance.now());
   const s = run.state,
     gun = s.arsenal.find((g) => g.id === s.slots[s.active]);
-  updatePointerLock();
+  updatePointerLockState();
+  updateTouchControls();
   const remaining = Math.max(0, Math.ceil(900 - s.elapsed));
   text(
     "clock",
@@ -1638,8 +1705,8 @@ function renderHud() {
       : pointerLockSupported &&
           hasMouseInput &&
           document.pointerLockElement !== canvas
-        ? "Click to capture mouse aim · Esc releases · F fish"
-        : "Mouse look · Click fire · Right mouse aim · Esc releases · F fish",
+        ? "Move to look · Click fire · Right mouse aim · F fish"
+        : "Mouse look · Click fire · Right mouse aim · F fish",
   );
   el("reticle").hidden =
     s.mode === "fishing" || s.mode === "returning" || s.arsenalOpen;
@@ -1727,8 +1794,8 @@ function frame(now: number) {
   if (document.hidden) return;
   if (started) {
     updatePlacement();
-    let x = (keys.has("KeyD") ? 1 : 0) - (keys.has("KeyA") ? 1 : 0),
-      z = (keys.has("KeyW") ? 1 : 0) - (keys.has("KeyS") ? 1 : 0);
+    let x = (keys.has("KeyD") ? 1 : 0) - (keys.has("KeyA") ? 1 : 0) + joystickX,
+      z = (keys.has("KeyW") ? 1 : 0) - (keys.has("KeyS") ? 1 : 0) + joystickY;
     const controlHeading = run.state.mode === "fishing" ? fishingHeading : heading;
     const worldX = Math.sin(controlHeading) * z - Math.cos(controlHeading) * x,
       worldZ = Math.cos(controlHeading) * z + Math.sin(controlHeading) * x;

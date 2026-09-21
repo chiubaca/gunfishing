@@ -34,7 +34,7 @@ Click **Enter the waterlands** to spawn and start the clock. Place the Lure besi
 | Click or E during a bite | Catch on the line snap                                              |
 | 1 / 2                    | Cancel and draw Primary / Secondary                                 |
 | Q / F                    | Emergency cancel / return to Fishing mode                           |
-| Click Combat / Esc       | Capture / release unlimited mouse aiming                            |
+| Escape                   | Cancel an active cast or close a panel                               |
 | Move mouse               | Look around in Combat mode, including vertical aim                  |
 | Left mouse / right mouse | Fire / precision aim; hold fire for Auto Rifle                      |
 | R / V in Combat          | Reload / committed, ammunition-free Rod attack                      |
@@ -42,9 +42,10 @@ Click **Enter the waterlands** to spawn and start the clock. Place the Lure besi
 | Hold B                   | Drink Beer to heal                                                  |
 | E / hold E nearby        | Collect a physical drop / reclaim a cache or service a defender     |
 | Tab                      | Live arsenal: assign slots, upgrade, merge, unpack or drop supplies |
+| Map                      | Toggle the island radar                                             |
 | ?                        | Field guide; does not pause the Run                                 |
 
-On touch screens, tap water to place the Lure, drag to look, and use the onscreen movement/action buttons. Release or move to cancel an exposed hold. Beer repairs damaged defenders before it can fuel them. Ammo bundles must be unpacked in the arsenal to enter class reserves.
+On touch screens, rotate to landscape for the best view. Use the left thumbstick to move and the right-side action buttons to fish or fight; drag the world to look. The Map button toggles the island radar. Release or move to cancel an exposed hold. Beer repairs damaged defenders before it can fuel them. Ammo bundles must be unpacked in the arsenal to enter class reserves.
 
 ## Implemented Loop
 
