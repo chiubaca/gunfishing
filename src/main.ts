@@ -24,6 +24,7 @@ import type { Action, Gunfish, Monster, Role, Species, Vec } from "./types";
 import "./style.css";
 import { buildWaterscape } from "./waterscape";
 import { createSky } from "./sky";
+import { fishModel, GUNFISH_COLORS as colors, RARITY_COLORS as rarityColors } from "./gunfish-model";
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
 const assetLoader = new GLTFLoader();
@@ -59,7 +60,7 @@ app.innerHTML = `
       <dt>Hold E / hold M / hold B</dt><dd>Collect or service / sacrifice active Gunfish as a defender / drink Beer.</dd>
       <dt>Tab</dt><dd>Assign slots, unpack ammo bundles, upgrade or merge same-species Gunfish.</dd>
      </dl><p>Head toward a location marker to find more visible fish. Sheltered pools favor common catches. Exposed hotspots favor rarity. A Recovery marker shows the exact equipment from your last failure.</p><p class="muted">On touch screens: use the left thumbstick, drag the world to look, tap water to place, and use the right-side action buttons. The app resumes your current Run when reopened. This guide does not pause play.</p></section>
-     <section id="welcome" class="overlay"><div class="intro"><span class="eyebrow">A SOLO SURVIVAL FIELD EXPERIMENT</span><h1>One more<br><em>cast.</em></h1><p>Fish for living guns. Hold your ground.<br>Make it to dawn, or leave something worth returning for.</p><button id="start" class="primary">Enter the waterlands <span>15 MINUTE RUN</span></button><small>WASD to move · Mouse to cast and fire · Headphones recommended</small></div><div class="intro-note">THE WATER GIVES.<br>THE WATER REMEMBERS.</div></section>
+      <section id="welcome" class="overlay"><div class="intro"><span class="eyebrow">A SOLO SURVIVAL FIELD EXPERIMENT</span><h1>One more<br><em>cast.</em></h1><p>Fish for living guns. Hold your ground.<br>Make it to dawn, or leave something worth returning for.</p><button id="start" class="primary">Enter the waterlands <span>15 MINUTE RUN</span></button><small>WASD to move · Mouse to cast and fire · Headphones recommended</small><p><a class="guide-link" href="/explore/guns">Explore the Gunfish directory ↗</a></p></div><div class="intro-note">THE WATER GIVES.<br>THE WATER REMEMBERS.</div></section>
     <section id="results" class="overlay" hidden><div class="intro"><span class="eyebrow" id="result-eyebrow"></span><h1 id="result-title"></h1><p id="result-copy"></p><div id="result-stats"></div><button id="next" class="primary">Start the next Run</button></div></section>
      <div id="touch" aria-label="Touch controls"><div class="move-controls"><div id="joystick" class="joystick" role="group" aria-label="Move joystick"><span id="joystick-knob" class="joystick-knob" aria-hidden="true"></span></div><button class="touch-sprint" data-key="ShiftLeft">Run</button></div><div class="touch-actions"><button data-touch="main" data-control="main" data-mode="both">Cast</button><button data-key="KeyE" data-control="interact" data-mode="both">Catch</button><button data-key="KeyR" data-control="reel" data-mode="both">Reel</button><button data-key="ArrowLeft" data-control="tug" data-mode="fishing">Tug L</button><button data-key="ArrowRight" data-control="tug" data-mode="fishing">Tug R</button><button data-key="Digit1" data-mode="shooting">Primary</button><button data-key="Digit2" data-mode="shooting">Secondary</button><button data-key="KeyF" data-control="mode" data-mode="shooting">Explore</button><button data-key="KeyQ" data-control="cancel" data-mode="both">Cancel</button><button data-key="KeyV" data-mode="shooting">Rod</button><button data-key="KeyM" data-mode="shooting">Mount</button><button data-key="KeyB" data-mode="shooting">Beer</button><button data-key="Space" data-mode="both">Jump</button><button data-touch="aim" data-mode="shooting">Aim</button></div></div>
     <div id="save-warning" role="alert" hidden></div>
@@ -71,12 +72,6 @@ const text = (id: string, value: string) => {
   if (el(id).textContent !== value) el(id).textContent = value;
 };
 const tiers = ["", "I", "II", "III"];
-const colors: Record<Species, number> = {
-  pistol: 0xf1ce81,
-  rifle: 0x87cfb2,
-  shotgun: 0xe3957d,
-};
-const rarityColors = [0, 0xd2ddba, 0x79d8eb, 0xdfa0f2];
 const distance = (a: Vec, b: Vec) => Math.hypot(a.x - b.x, a.z - b.z);
 const escapeHtml = (s: string) =>
   s.replace(
@@ -357,57 +352,6 @@ rod.rotation.x = -0.3;
 const held = new THREE.Group();
 held.position.set(0.48, 1.25, 0.7);
 player.add(held);
-function fishModel(species: Species, rarity: number, parent: THREE.Object3D) {
-  const g = new THREE.Group();
-  parent.add(g);
-  const length = species === "rifle" ? 1.5 : species === "shotgun" ? 1.1 : 0.95;
-  mesh(
-    g,
-    sphereGeometry,
-    colors[species],
-    0,
-    0,
-    0,
-    species === "shotgun" ? 0.45 : 0.27,
-    0.26,
-    length * 0.65,
-  );
-  const tail = mesh(
-    g,
-    new THREE.ConeGeometry(0.35, 0.5, 3),
-    colors[species],
-    0,
-    0,
-    -length * 0.75,
-  );
-  tail.rotation.x = Math.PI / 2;
-  mesh(
-    g,
-    boxGeometry,
-    0x244443,
-    0,
-    0,
-    length * 0.63,
-    0.16,
-    0.16,
-    species === "rifle" ? 0.65 : 0.3,
-  );
-  mesh(g, sphereGeometry, 0x101d1c, -0.22, 0.14, 0.3, 0.07, 0.07, 0.07);
-  mesh(g, sphereGeometry, 0x101d1c, 0.22, 0.14, 0.3, 0.07, 0.07, 0.07);
-  for (let i = 0; i < rarity; i++)
-    mesh(
-      g,
-      boxGeometry,
-      rarityColors[rarity],
-      0,
-      0.3,
-      -0.2 + i * 0.22,
-      0.1,
-      0.2,
-      0.12,
-    );
-  return g;
-}
 let heldId = "";
 const entities = new Map<string, THREE.Group>();
 const monsterAssetPaths: Record<Role, string> = {

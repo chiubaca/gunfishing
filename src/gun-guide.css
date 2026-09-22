@@ -1,0 +1,459 @@
+:root {
+  font-family: "Trebuchet MS", Arial, sans-serif;
+  color: #eeeedb;
+  background: #102b29;
+  font-synthesis: none;
+  color-scheme: dark;
+  font-size: 16px;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+a {
+  color: inherit;
+}
+button,
+select {
+  font: inherit;
+}
+a:focus-visible,
+button:focus-visible,
+select:focus-visible {
+  outline: 2px solid #f1ce81;
+  outline-offset: 5px;
+}
+button,
+select {
+  border: 1px solid #a9c4b54a;
+  background: #193c36;
+  color: #eeeedb;
+  border-radius: 8px;
+  padding: 9px 13px;
+}
+button {
+  cursor: pointer;
+}
+button:hover {
+  background: #31574a;
+}
+.guide-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 28px 5vw;
+  border-bottom: 1px solid #a9c4b528;
+}
+.wordmark {
+  text-decoration: none;
+  font-weight: bold;
+  letter-spacing: 0.13em;
+  font-size: 21px;
+}
+.wordmark span {
+  display: block;
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  color: #acc5b6;
+  margin-top: 8px;
+}
+.guide-header nav {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  font-size: 14px;
+}
+.guide-header nav a {
+  text-decoration: none;
+}
+.play-link {
+  border: 1px solid #a9c4b54a;
+  padding: 12px 18px;
+  border-radius: 8px;
+}
+.guide-main {
+  max-width: 1100px;
+  margin: auto;
+  padding: 60px 28px 80px;
+}
+.eyebrow {
+  font-size: 11px;
+  font-weight: bold;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #c2d2bd;
+}
+h1 {
+  font-family: Georgia, serif;
+  font-weight: normal;
+  font-size: clamp(38px, 6vw, 66px);
+  letter-spacing: -0.035em;
+  line-height: 1.1;
+  margin: 18px 0;
+}
+h2 {
+  font-family: Georgia, serif;
+  font-weight: normal;
+  font-size: 32px;
+  margin: 12px 0;
+}
+p {
+  line-height: 1.7;
+  color: #b9cec1;
+}
+.guide-intro {
+  max-width: 700px;
+  margin-bottom: 40px;
+}
+.guide-intro > p:not(.eyebrow) {
+  font-size: 18px;
+}
+.count {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 0.13em;
+  margin-top: 32px;
+  color: #f1ce81;
+}
+.gun-list {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 18px;
+}
+.gun-card {
+  display: grid;
+  grid-template-columns: 240px 1fr 30px;
+  gap: 24px;
+  align-items: center;
+  text-decoration: none;
+  border: 1px solid #a9c4b533;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #173631;
+  transition:
+    border-color 0.2s,
+    background 0.2s;
+}
+.gun-card:hover {
+  border-color: var(--accent);
+  background: #204139;
+}
+.pistol {
+  --accent: #f1ce81;
+}
+.rifle {
+  --accent: #87cfb2;
+}
+.shotgun {
+  --accent: #e3957d;
+}
+.card-model {
+  height: 215px;
+  background: radial-gradient(ellipse, #63867633, transparent 75%);
+  pointer-events: none;
+}
+.card-copy {
+  padding: 24px 0;
+}
+.card-copy h2 {
+  font-size: 29px;
+  color: var(--accent);
+}
+.card-copy p {
+  font-size: 14px;
+  margin: 10px 0 16px;
+  max-width: 550px;
+}
+.branch-label {
+  font-size: 12px;
+  color: #dfdfc7;
+}
+.card-arrow {
+  color: var(--accent);
+  font-size: 24px;
+}
+.back-link {
+  font-size: 13px;
+  color: #b9cec1;
+  text-decoration: none;
+}
+.detail-heading {
+  margin: 35px 0;
+}
+.detail-heading > p:last-child {
+  max-width: 680px;
+  font-size: 18px;
+}
+.specimen {
+  border: 1px solid #a9c4b533;
+  background: radial-gradient(ellipse at center, #3e655344, #173631 75%);
+  border-radius: 18px;
+  overflow: hidden;
+}
+.specimen-top {
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.specimen-top label {
+  font-size: 13px;
+  color: #b9cec1;
+}
+.specimen-top select {
+  margin-left: 8px;
+}
+.detail-model {
+  height: 390px;
+  cursor: grab;
+}
+.detail-model:active {
+  cursor: grabbing;
+}
+canvas {
+  display: block;
+  max-width: 100%;
+}
+.viewer-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  padding: 14px 24px;
+  border-top: 1px solid #a9c4b522;
+}
+.viewer-toolbar p {
+  font-size: 12px;
+  margin: 0;
+}
+.viewer-toolbar > div {
+  display: flex;
+  gap: 6px;
+}
+.stats {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  margin: 26px 0 12px;
+  gap: 12px;
+}
+.stats > div {
+  border-bottom: 1px solid #a9c4b533;
+  padding: 12px 0 20px;
+}
+.stats dt {
+  font-size: 11px;
+  color: #b9cec1;
+}
+.stats dd {
+  margin: 10px 0 0;
+  font-size: 25px;
+}
+.stat-note {
+  font-size: 12px;
+}
+.evolution,
+.habitats {
+  margin-top: 64px;
+}
+.evolution > p {
+  max-width: 820px;
+}
+.requirements {
+  margin-top: 28px;
+  border: 1px solid #a9c4b533;
+  padding: 24px;
+  border-radius: 12px;
+}
+.requirements h3 {
+  margin-top: 0;
+}
+.requirements p {
+  font-size: 13px;
+  margin-bottom: 0;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 14px;
+}
+caption {
+  text-align: left;
+  color: #b9cec1;
+  font-size: 12px;
+  margin-bottom: 18px;
+}
+th,
+td {
+  padding: 14px 8px;
+  border-bottom: 1px solid #a9c4b522;
+}
+thead th {
+  color: #b9cec1;
+  font-size: 12px;
+}
+.branch-root {
+  text-align: center;
+  padding: 24px;
+  margin: 32px auto 0;
+  border: 1px solid #a9c4b544;
+  border-radius: 12px;
+  max-width: 360px;
+}
+.branch-root span {
+  display: block;
+  color: #b9cec1;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  margin-top: 10px;
+}
+.evolution-branches {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  padding-top: 30px;
+}
+.branch {
+  position: relative;
+  background: #173631;
+  border: 1px solid #a9c4b533;
+  border-radius: 12px;
+  padding: 26px;
+}
+.branch:before {
+  content: "";
+  position: absolute;
+  top: -31px;
+  left: 50%;
+  height: 30px;
+  border-left: 1px solid #a9c4b544;
+}
+.branch h3 {
+  font-family: Georgia, serif;
+  font-size: 28px;
+  font-weight: normal;
+  color: #f1ce81;
+  margin: 12px 0 24px;
+}
+.branch ol {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.branch li + li {
+  border-top: 1px solid #a9c4b533;
+  margin-top: 20px;
+  padding-top: 20px;
+}
+.stage {
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  color: #eeeedb;
+}
+.branch p {
+  font-size: 14px;
+  margin-bottom: 0;
+}
+.habitats ul {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  list-style: none;
+  padding: 0;
+}
+.habitats li {
+  font-size: 13px;
+  border: 1px solid #a9c4b533;
+  border-radius: 30px;
+  padding: 10px 16px;
+}
+.guide-footer {
+  border-top: 1px solid #a9c4b528;
+  margin: 0 5vw;
+  padding: 28px 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: #9cb7a8;
+}
+.model-error {
+  padding: 28px;
+  text-align: center;
+  font-size: 13px;
+}
+@media (max-width: 650px) {
+  .guide-header {
+    align-items: flex-start;
+    padding: 22px;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .guide-header nav {
+    width: 100%;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .guide-main {
+    padding: 36px 20px 55px;
+  }
+  .gun-card {
+    grid-template-columns: 1fr;
+    gap: 0;
+    position: relative;
+  }
+  .card-model {
+    height: 190px;
+  }
+  .card-copy {
+    padding: 8px 22px 26px;
+  }
+  .card-arrow {
+    position: absolute;
+    right: 20px;
+    top: 20px;
+  }
+  .detail-model {
+    height: 280px;
+  }
+  .specimen-top {
+    padding: 16px;
+  }
+  .specimen-top .eyebrow {
+    max-width: 130px;
+    font-size: 9px;
+  }
+  .viewer-toolbar {
+    flex-direction: column;
+    padding: 18px 10px;
+  }
+  .stats {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .stats dd {
+    font-size: 22px;
+  }
+  .evolution-branches {
+    grid-template-columns: 1fr;
+  }
+  .requirements {
+    padding: 16px;
+  }
+  th,
+  td {
+    padding: 12px 4px;
+    font-size: 12px;
+  }
+  .guide-footer {
+    flex-direction: column;
+  }
+  .branch:before {
+    display: none;
+  }
+}
