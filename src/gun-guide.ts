@@ -86,9 +86,15 @@ function viewer(type: Species, interactive: boolean, rarity = 1) {
   const light = new THREE.DirectionalLight(0xffddb0, 3.1);
   light.position.set(3, 5, 4);
   scene.add(light);
-  let model = fishModel(type, rarity, scene);
   const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 30);
   camera.position.set(3.5, 1.7, 2.5);
+  const render = () => renderer.render(scene, camera);
+  const makeModel = (level: number) => {
+    const model = fishModel(type, level, scene, render);
+    if (type === "pistol" && interactive) model.scale.setScalar(1.6);
+    return model;
+  };
+  let model = makeModel(rarity);
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enabled = interactive;
   controls.enablePan = false;
@@ -97,7 +103,6 @@ function viewer(type: Species, interactive: boolean, rarity = 1) {
   controls.target.set(0, 0, 0);
   controls.update();
   controls.saveState();
-  const render = () => renderer.render(scene, camera);
   controls.addEventListener("change", render);
   const resize = new ResizeObserver(() => {
     const { width, height } = host.getBoundingClientRect();
@@ -116,7 +121,7 @@ function viewer(type: Species, interactive: boolean, rarity = 1) {
         search.set("level", String(level));
         history.replaceState(null, "", `${window.location.pathname}?${search}`);
         scene.remove(model);
-        model = fishModel(type, level, scene);
+        model = makeModel(level);
         render();
       });
     document

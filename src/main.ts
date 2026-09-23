@@ -396,6 +396,7 @@ function disposeEntity(group: THREE.Object3D) {
   ]);
   group.traverse((object) => {
     if (!(object instanceof THREE.Mesh)) return;
+    if (object.userData.sharedGunfishAsset) return;
     if (!shared.has(object.geometry)) object.geometry.dispose();
     const used = Array.isArray(object.material)
       ? object.material

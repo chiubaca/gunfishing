@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import type { Species } from "./types";
 
 export const GUNFISH_COLORS: Record<Species, number> = {
@@ -11,15 +12,37 @@ const materials = new Map<number, THREE.MeshStandardMaterial>();
 const box = new THREE.BoxGeometry(1, 1, 1);
 const sphere = new THREE.IcosahedronGeometry(1, 1);
 const cone = new THREE.ConeGeometry(0.35, 0.5, 3);
+let pistolAsset: Promise<THREE.Group | null> | undefined;
+
+function loadPistolAsset() {
+  pistolAsset ??= new GLTFLoader()
+    .loadAsync(`${import.meta.env.BASE_URL}assets/gunfish/pistol.glb`)
+    .then(({ scene }) => {
+      scene.traverse((object) => {
+        if (!(object instanceof THREE.Mesh)) return;
+        object.castShadow = object.receiveShadow = true;
+        object.userData.sharedGunfishAsset = true;
+      });
+      return scene;
+    })
+    .catch((error: unknown) => {
+      console.warn("Pistol Gunfish model unavailable; using fallback mesh.", error);
+      return null;
+    });
+  return pistolAsset;
+}
 
 /** Shared by swimming, held, mounted and field-guide Gunfish. */
 export function fishModel(
   species: Species,
   rarity: number,
   parent: THREE.Object3D,
+  onReady?: () => void,
 ) {
   const group = new THREE.Group();
   parent.add(group);
+  const body = new THREE.Group();
+  group.add(body);
   function part(
     geometry: THREE.BufferGeometry,
     color: number,
@@ -29,6 +52,7 @@ export function fishModel(
     sx = 1,
     sy = 1,
     sz = 1,
+    container: THREE.Object3D = body,
   ) {
     if (!materials.has(color))
       materials.set(
@@ -43,7 +67,8 @@ export function fishModel(
     mesh.position.set(x, y, z);
     mesh.scale.set(sx, sy, sz);
     mesh.castShadow = mesh.receiveShadow = true;
-    group.add(mesh);
+    mesh.userData.sharedGunfishAsset = true;
+    container.add(mesh);
     return mesh;
   }
   const length = species === "rifle" ? 1.5 : species === "shotgun" ? 1.1 : 0.95;
@@ -72,6 +97,29 @@ export function fishModel(
   part(sphere, 0x101d1c, -0.22, 0.14, 0.3, 0.07, 0.07, 0.07);
   part(sphere, 0x101d1c, 0.22, 0.14, 0.3, 0.07, 0.07, 0.07);
   for (let i = 0; i < rarity; i++)
-    part(box, RARITY_COLORS[rarity], 0, 0.3, -0.2 + i * 0.22, 0.1, 0.2, 0.12);
+    part(
+      box,
+      RARITY_COLORS[rarity],
+      0,
+      0.3,
+      species === "pistol" ? 0.35 - i * 0.14 : -0.2 + i * 0.22,
+      species === "pistol" ? 0.12 : 0.1,
+      species === "pistol" ? 0.035 : 0.2,
+      species === "pistol" ? 0.08 : 0.12,
+      group,
+    );
+  if (species === "pistol") {
+    void loadPistolAsset().then((asset) => {
+      if (!asset || !group.parent) return;
+      group.remove(body);
+      const model = asset.clone(true);
+      // Blender's muzzle points along -X; Gunfish in the game face +Z.
+      model.rotation.y = Math.PI / 2;
+      model.scale.setScalar(0.22);
+      model.position.y = -0.29;
+      group.add(model);
+      onReady?.();
+    });
+  }
   return group;
 }
