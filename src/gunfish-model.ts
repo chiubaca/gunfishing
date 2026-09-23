@@ -12,11 +12,21 @@ const materials = new Map<number, THREE.MeshStandardMaterial>();
 const box = new THREE.BoxGeometry(1, 1, 1);
 const sphere = new THREE.IcosahedronGeometry(1, 1);
 const cone = new THREE.ConeGeometry(0.35, 0.5, 3);
-let pistolAsset: Promise<THREE.Group | null> | undefined;
+const pistolAssets = new Map<number, Promise<THREE.Group | null>>();
 
-function loadPistolAsset() {
-  pistolAsset ??= new GLTFLoader()
-    .loadAsync(`${import.meta.env.BASE_URL}assets/gunfish/pistol.glb`)
+function loadPistolAsset(rarity: number) {
+  const tier = rarity === 2 ? 2 : 1;
+  let asset = pistolAssets.get(tier);
+  if (asset) return asset;
+  const baseUrl = `${import.meta.env.BASE_URL}assets/gunfish/`;
+  const loader = new GLTFLoader();
+  const load = (file: string) => loader.loadAsync(`${baseUrl}${file}`);
+  asset = (tier === 2
+    ? load("pistol-tier-2.glb").catch((error: unknown) => {
+        console.warn("Tier II Pistol Gunfish model unavailable; using base model.", error);
+        return load("pistol.glb");
+      })
+    : load("pistol.glb"))
     .then(({ scene }) => {
       scene.traverse((object) => {
         if (!(object instanceof THREE.Mesh)) return;
@@ -29,7 +39,8 @@ function loadPistolAsset() {
       console.warn("Pistol Gunfish model unavailable; using fallback mesh.", error);
       return null;
     });
-  return pistolAsset;
+  pistolAssets.set(tier, asset);
+  return asset;
 }
 
 /** Shared by swimming, held, mounted and field-guide Gunfish. */
@@ -109,7 +120,7 @@ export function fishModel(
       group,
     );
   if (species === "pistol") {
-    void loadPistolAsset().then((asset) => {
+    void loadPistolAsset(rarity).then((asset) => {
       if (!asset || !group.parent) return;
       group.remove(body);
       const model = asset.clone(true);
