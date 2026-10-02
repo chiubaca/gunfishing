@@ -87,6 +87,17 @@ Recovery selection targets favorable/contested/poor route bands without inspecti
 The source specification remains `.scratch/first-playable-loop/spec.md`. Existing decision documents and the disposable camera prototype are preserved separately.
 # Mechanics sandbox
 
+Run `npm run dev` to serve on port **43871** (strict: no automatic port fallback).
+To share it temporarily through Cloudflare, run:
+
+```sh
+cloudflared tunnel --url http://127.0.0.1:43871 --http-host-header localhost
+```
+
+Open the generated HTTPS URL with `/sandbox` appended. This is a public,
+temporary URL that expires when the tunnel stops. The explicit Host header keeps
+Vite's host validation enabled without allowing arbitrary external hostnames.
+
 Open `/sandbox` (or choose **Mechanics sandbox** on the welcome screen) to test
 Gunfish without fishing. Select any species, rarity, and evolution branch at
 Stage I or II. All four enemy types stand in a stationary row with health bars;
