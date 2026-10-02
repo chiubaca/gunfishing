@@ -85,3 +85,15 @@ This is procedural first-playable presentation, not final art or an acceptance c
 Recovery selection targets favorable/contested/poor route bands without inspecting cache value. Authored fishing-pocket pairings support all three bands. For arbitrary death positions without a candidate in the sampled band, selection falls back to another legal 45-240-second route.
 
 The source specification remains `.scratch/first-playable-loop/spec.md`. Existing decision documents and the disposable camera prototype are preserved separately.
+# Mechanics sandbox
+
+Open `/sandbox` (or choose **Mechanics sandbox** on the welcome screen) to test
+Gunfish without fishing. Select any species, rarity, and evolution branch at
+Stage I or II. All four enemy types stand in a stationary row with health bars;
+killed targets immediately respawn at full health. **Reset target health** starts
+a fresh comparison. Combat uses the normal game mechanics, with unlimited ammo
+reserves, normal magazine/reload timing, no enemy attacks, and no survival timer.
+
+Click the arena to shoot, right-click to aim, use WASD to move and R to reload.
+Press Esc to release the mouse and change selections. Sandbox play never reads
+or writes your saved survival Run.

@@ -16,7 +16,7 @@ import {
   MONSTERS,
   OBSTACLES,
   SPECIES,
-  terrainHeight,
+  terrainHeight as worldTerrainHeight,
   WORLD_SIZE,
 } from "./content";
 import { gunStats } from "./economy";
@@ -25,6 +25,9 @@ import "./style.css";
 import { buildWaterscape } from "./waterscape";
 import { createSky } from "./sky";
 import { fishModel, GUNFISH_COLORS as colors, RARITY_COLORS as rarityColors } from "./gunfish-model";
+
+const sandbox = window.location.pathname.replace(/\/+$/, "") === "/sandbox";
+const terrainHeight = (point: Vec) => sandbox ? 0 : worldTerrainHeight(point);
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
 const assetLoader = new GLTFLoader();
@@ -60,7 +63,7 @@ app.innerHTML = `
       <dt>Hold E / hold M / hold B</dt><dd>Collect or service / sacrifice active Gunfish as a defender / drink Beer.</dd>
       <dt>Tab</dt><dd>Assign slots, unpack ammo bundles, upgrade or merge same-species Gunfish.</dd>
      </dl><p>Head toward a location marker to find more visible fish. Sheltered pools favor common catches. Exposed hotspots favor rarity. A Recovery marker shows the exact equipment from your last failure.</p><p class="muted">On touch screens: use the left thumbstick, drag the world to look, tap water to place, and use the right-side action buttons. The app resumes your current Run when reopened. This guide does not pause play.</p></section>
-      <section id="welcome" class="overlay"><div class="intro"><span class="eyebrow">A SOLO SURVIVAL FIELD EXPERIMENT</span><h1>One more<br><em>cast.</em></h1><p>Fish for living guns. Hold your ground.<br>Make it to dawn, or leave something worth returning for.</p><button id="start" class="primary">Enter the waterlands <span>15 MINUTE RUN</span></button><small>WASD to move · Mouse to cast and fire · Headphones recommended</small><p><a class="guide-link" href="/explore/guns">Explore the Gunfish directory ↗</a></p></div><div class="intro-note">THE WATER GIVES.<br>THE WATER REMEMBERS.</div></section>
+      <section id="welcome" class="overlay"><div class="intro"><span class="eyebrow">A SOLO SURVIVAL FIELD EXPERIMENT</span><h1>One more<br><em>cast.</em></h1><p>Fish for living guns. Hold your ground.<br>Make it to dawn, or leave something worth returning for.</p><button id="start" class="primary">Enter the waterlands <span>15 MINUTE RUN</span></button><small>WASD to move · Mouse to cast and fire · Headphones recommended</small><p><a class="guide-link" href="/explore/guns">Explore the Gunfish directory ↗</a></p><p><a class="guide-link" href="/sandbox">Mechanics sandbox ↗</a></p></div><div class="intro-note">THE WATER GIVES.<br>THE WATER REMEMBERS.</div></section>
     <section id="results" class="overlay" hidden><div class="intro"><span class="eyebrow" id="result-eyebrow"></span><h1 id="result-title"></h1><p id="result-copy"></p><div id="result-stats"></div><button id="next" class="primary">Start the next Run</button></div></section>
      <div id="touch" aria-label="Touch controls"><div class="move-controls"><div id="joystick" class="joystick" role="group" aria-label="Move joystick"><span id="joystick-knob" class="joystick-knob" aria-hidden="true"></span></div><button class="touch-sprint" data-key="ShiftLeft">Run</button></div><div class="touch-actions"><button data-touch="main" data-control="main" data-mode="both">Cast</button><button data-key="KeyE" data-control="interact" data-mode="both">Catch</button><button data-key="KeyR" data-control="reel" data-mode="both">Reel</button><button data-key="ArrowLeft" data-control="tug" data-mode="fishing">Tug L</button><button data-key="ArrowRight" data-control="tug" data-mode="fishing">Tug R</button><button data-key="Digit1" data-mode="shooting">Primary</button><button data-key="Digit2" data-mode="shooting">Secondary</button><button data-key="KeyF" data-control="mode" data-mode="shooting">Explore</button><button data-key="KeyQ" data-control="cancel" data-mode="both">Cancel</button><button data-key="KeyV" data-mode="shooting">Rod</button><button data-key="KeyM" data-mode="shooting">Mount</button><button data-key="KeyB" data-mode="shooting">Beer</button><button data-key="Space" data-mode="both">Jump</button><button data-touch="aim" data-mode="shooting">Aim</button></div></div>
     <div id="save-warning" role="alert" hidden></div>
@@ -84,11 +87,11 @@ const escapeHtml = (s: string) =>
 const describe = (g: Gunfish) =>
   `${SPECIES[g.species].name} · Tier ${tiers[g.rarity]} · ${g.branch ? `${g.branch} ${tiers[g.stage]}` : "Unevolved"} · Damage ${g.ranks.damage} / Rate ${g.ranks.rate} / Magazine ${g.ranks.magazine}`;
 const SAVE_KEY = "gunfishers.first-playable.v1";
-let run = new Run(),
-  started = false,
+let run = new Run({ sandbox }),
+  started = sandbox,
   muted = false;
 try {
-  const saved = localStorage.getItem(SAVE_KEY);
+  const saved = sandbox ? null : localStorage.getItem(SAVE_KEY);
   if (saved) {
     run = new Run({ saved });
     started = true;
@@ -102,7 +105,7 @@ try {
   );
 }
 function persist() {
-  if (!started) return;
+  if (!started || sandbox) return;
   try {
     localStorage.setItem(SAVE_KEY, run.save());
   } catch {
@@ -157,6 +160,59 @@ sun.shadow.camera.far = 180;
 sun.shadow.bias = -0.001;
 scene.add(sun, sun.target);
 const sky = createSky(scene, sun);
+const targetLabels = new Map<Role, HTMLDivElement>();
+if (sandbox) {
+  el("game").classList.add("sandbox");
+  el("welcome").hidden = true;
+  const controls = document.createElement("aside");
+  controls.className = "sandbox-controls";
+  controls.innerHTML = `<strong>MECHANICS SANDBOX</strong><a href="/">Back to game</a>
+    <label>Gunfish<select id="sandbox-species">${Object.entries(SPECIES).map(([id, spec]) => `<option value="${id}">${spec.name}</option>`).join("")}</select></label>
+    <label>Rarity<select id="sandbox-rarity"><option value="1">Tier I</option><option value="2">Tier II</option><option value="3">Tier III</option></select></label>
+    <label>Evolution<select id="sandbox-evolution"></select></label>
+    <button id="sandbox-reset">Reset target health</button>
+    <small>Click arena to shoot · Right-click to aim · R reload<br>WASD move · Esc releases mouse to change Gunfish<br>Unlimited reserves · No timer · Targets respawn</small>`;
+  el("game").append(controls);
+  const speciesSelect = el<HTMLSelectElement>("sandbox-species");
+  const evolutionSelect = el<HTMLSelectElement>("sandbox-evolution");
+  const equip = () => {
+    const [branch, stage] = evolutionSelect.value.split(":");
+    run.selectSandboxGunfish(speciesSelect.value as Species, Number(el<HTMLSelectElement>("sandbox-rarity").value), branch || null, Number(stage || 0));
+  };
+  const updateEvolution = () => {
+    evolutionSelect.innerHTML = `<option value="">Unevolved</option>${SPECIES[speciesSelect.value as Species].branches.map(branch => [1, 2].map(stage => `<option value="${branch}:${stage}">${branch} · Stage ${tiers[stage]}</option>`).join("")).join("")}`;
+    equip();
+  };
+  speciesSelect.addEventListener("change", updateEvolution);
+  evolutionSelect.addEventListener("change", equip);
+  el("sandbox-rarity").addEventListener("change", equip);
+  el("sandbox-reset").addEventListener("click", () => run.resetSandboxTargets());
+  updateEvolution();
+  for (const role of Object.keys(MONSTERS) as Role[]) {
+    const label = document.createElement("div");
+    label.className = "sandbox-target";
+    label.innerHTML = `<strong>${role}</strong><progress max="${MONSTERS[role].health}"></progress><span></span>`;
+    el("game").append(label);
+    targetLabels.set(role, label);
+  }
+}
+
+function updateSandboxLabels() {
+  if (!sandbox) return;
+  for (const m of run.state.monsters) {
+    const label = targetLabels.get(m.role)!;
+    const position = new THREE.Vector3(m.x, 4.8, m.z).project(camera);
+    label.hidden = position.z > 1 || position.z < -1 || Math.abs(position.x) > 1 || Math.abs(position.y) > 1;
+    label.style.left = `${(position.x + 1) * innerWidth / 2}px`;
+    label.style.top = `${(1 - position.y) * innerHeight / 2}px`;
+    const health = Math.max(0, m.health);
+    if (label.dataset.health !== String(health)) {
+      label.dataset.health = String(health);
+      label.querySelector("progress")!.value = health;
+      label.querySelector("span")!.textContent = `${Math.ceil(health)} / ${MONSTERS[m.role].health}`;
+    }
+  }
+}
 const materials = new Map<number, THREE.MeshStandardMaterial>();
 function material(color: number) {
   if (!materials.has(color))
@@ -191,9 +247,13 @@ function mesh(
   parent.add(m);
   return m;
 }
-const terrainMeshes = buildTerrain(scene);
-buildExploration(scene);
-void buildNature(scene).catch((error: unknown) => {
+const terrainMeshes = sandbox ? [] : buildTerrain(scene);
+if (sandbox) {
+  mesh(scene, boxGeometry, 0x657d72, 0, -0.25, 0, 120, 0.5, 120);
+  scene.add(new THREE.GridHelper(120, 24, 0xb6ccbd, 0x829d8d));
+}
+if (!sandbox) buildExploration(scene);
+if (!sandbox) void buildNature(scene).catch((error: unknown) => {
   console.error("Nature scenery loading failed", error);
   el("save-warning").hidden = false;
   text("save-warning", "Some scenery could not load. You can still play; reload to retry.");
@@ -205,7 +265,7 @@ const waterMaterial = new THREE.MeshStandardMaterial({
   transparent: false,
 });
 const cameraObstacles: THREE.Object3D[] = [...terrainMeshes];
-const waters = buildWaterscape(scene, waterMaterial, cameraObstacles);
+const waters = sandbox ? [] : buildWaterscape(scene, waterMaterial, cameraObstacles);
 const ringGeometry = new THREE.RingGeometry(0.93, 1, 48);
 const rippleMaterial = new THREE.MeshBasicMaterial({
   color: 0xdcf1da,
@@ -225,6 +285,7 @@ function ring(
   return m;
 }
 for (const [index, location] of LOCATIONS.entries()) {
+  if (sandbox) break;
   if (index >= 6) continue;
   for (let j = 0; j < 44; j++) {
     const a = j * 2.399,
@@ -259,6 +320,7 @@ for (const [index, location] of LOCATIONS.entries()) {
   }
 }
 for (const [i, o] of OBSTACLES.entries()) {
+  if (sandbox) break;
   const ground = terrainHeight(o);
     if (LANDMARK_OBSTACLES.includes(o) || WATERFALL_OBSTACLES.includes(o)) {
     const collider = mesh(scene, boxGeometry, 0xffffff, o.x, ground + o.height / 2, o.z, o.width, o.height, o.depth);
@@ -1402,12 +1464,12 @@ function renderWorld(time: number) {
     });
     g.position.set(
       m.x,
-      terrainHeight(m) + Math.sin(time * 10 + m.x) * 0.07,
+      terrainHeight(m) + (sandbox ? 0 : Math.sin(time * 10 + m.x) * 0.07),
       m.z,
     );
     g.rotation.y = m.heading;
-    g.rotation.z = m.stagger > 0 ? Math.sin(time * 45) * 0.08 : 0;
-    setMonsterAnimation(g, m);
+    g.rotation.z = !sandbox && m.stagger > 0 ? Math.sin(time * 45) * 0.08 : 0;
+    setMonsterAnimation(g, sandbox ? { ...m, alerted: false, staggerTime: 0, windup: 0 } : m);
     const lane = g.userData.lane as THREE.Group;
     lane.visible = !!m.lane;
     if (m.lane) {
@@ -1650,7 +1712,7 @@ function renderHud() {
     .replace("[Aim]", "[Right mouse / Aim]")
     .replace("[Arsenal]", "[Tab]")
     .replace("[Rod Attack]", "[V]");
-  text("prompt", boundPrompt);
+  text("prompt", sandbox ? `Target practice · ${s.kills} kills · Esc to select Gunfish` : boundPrompt);
   text("notice", s.noticeTime > 0 ? s.notice : "");
   text(
     "mode-help",
@@ -1789,6 +1851,7 @@ function frame(now: number) {
     }
   }
   renderWorld(now / 1000);
+  updateSandboxLabels();
   hudTime += dt;
   if (hudTime > 0.08) {
     renderHud();

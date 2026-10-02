@@ -1281,3 +1281,29 @@ select {
     grid-column: span 2;
   }
 }
+/* The sandbox uses the live combat renderer without survival navigation. */
+.sandbox #navigation, .sandbox #exploration-map, .sandbox .clock,
+.sandbox .threat, .sandbox #power, .sandbox #arsenal-button, .sandbox #map-toggle {
+  display: none;
+}
+.sandbox-controls {
+  position: absolute; z-index: 15; top: 80px; left: 20px;
+  width: 270px; padding: 16px; background: #172c29ed;
+  color: #f4eddc; border: 1px solid #829d8d; border-radius: 10px;
+  display: grid; gap: 10px;
+}
+.sandbox-controls a { color: #d7e5b2; }
+.sandbox-controls label { display: grid; gap: 4px; }
+.sandbox-controls select { width: 100%; padding: 8px; color: #f4eddc; background: #263f38; }
+.sandbox-controls small { line-height: 1.5; }
+.sandbox-target {
+  position: absolute; z-index: 5; pointer-events: none;
+  transform: translate(-50%, -100%); width: 120px;
+  padding: 6px; background: #172c29d9; color: #fff4db;
+  border-radius: 6px; text-align: center; font-size: 12px;
+}
+.sandbox-target strong { text-transform: capitalize; }
+.sandbox-target progress { display: block; width: 100%; height: 10px; accent-color: #b7df83; margin: 4px 0; }
+@media (max-width: 700px) {
+  .sandbox-controls { top: 65px; left: 8px; width: 190px; padding: 8px; gap: 5px; font-size: 11px; }
+}

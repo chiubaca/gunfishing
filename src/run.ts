@@ -59,10 +59,12 @@ const segmentDistance = (
 export class Run {
   state: RunState;
   private scenario: Scenario;
+  readonly sandbox: boolean;
 
   constructor(
-    options: { seed?: number; saved?: string; scenario?: Scenario } = {},
+    options: { seed?: number; saved?: string; scenario?: Scenario; sandbox?: boolean } = {},
   ) {
+    this.sandbox = options.sandbox ?? false;
     this.scenario = options.scenario ?? {};
     if (options.saved) {
       const saved = JSON.parse(options.saved) as RunState;
@@ -224,13 +226,50 @@ export class Run {
       }
     Object.assign(s, copy(options.scenario?.state ?? {}));
     updatePower(s);
+    if (this.sandbox) {
+      Object.assign(s.player, { x: 0, z: -16, heading: 0, pitch: 0 });
+      s.mode = "combat";
+      s.fish = [];
+      s.cache = null;
+      this.resetSandboxTargets();
+      this.selectSandboxGunfish("pistol");
+    }
+  }
+
+  resetSandboxTargets(): void {
+    if (!this.sandbox) return;
+    this.state.monsters = (Object.keys(MONSTERS) as Role[]).map(role => this.sandboxTarget(role));
+    this.state.projectiles = [];
+    this.state.drops = [];
+  }
+
+  private sandboxTarget(role: Role): Monster {
+    const index = Object.keys(MONSTERS).indexOf(role);
+    return this.monster(role, { x: (index - 1.5) * 7, z: 8 });
+  }
+
+  selectSandboxGunfish(species: Species, rarity = 1, branch: string | null = null, stage = 0): void {
+    if (!this.sandbox) return;
+    const g = makeGunfish(this.id("sandbox-gunfish"), species, rarity);
+    g.branch = branch;
+    g.stage = branch ? stage : 0;
+    const s = this.state;
+    s.arsenal = [g];
+    s.slots = [g.id, null];
+    s.active = 0;
+    s.mode = "combat";
+    s.reload = s.fireCooldown = s.charge = s.spool = s.sinceShot = s.shots = 0;
+    s.bufferedShot = false;
+    s.projectiles = [];
+    s.reserves = { pistol: 9999, rifle: 9999, shells: 9999 };
+    updatePower(s);
   }
 
   view(): RunState {
     return this.state;
   }
   surfaceHeight(point: Vec): number {
-    return terrainHeight(point);
+    return this.sandbox ? 0 : terrainHeight(point);
   }
   content() {
     return copy({
@@ -287,6 +326,7 @@ export class Run {
   }
 
   private solid(point: Vec, radius = 0, shoreline = true): boolean {
+    if (this.sandbox) return Math.abs(point.x) > 60 - radius || Math.abs(point.z) > 60 - radius;
     const half = WORLD_SIZE / 2;
     return (
       (shoreline && !onIsland(point, radius)) ||
@@ -300,6 +340,7 @@ export class Run {
     );
   }
   private stable(point: Vec): Vec {
+    if (this.sandbox) return { x: clamp(point.x, -59, 59), z: clamp(point.z, -59, 59) };
     const half = WORLD_SIZE / 2 - 1;
     const p = {
       x: clamp(point.x, -half, half),
@@ -324,6 +365,7 @@ export class Run {
     return p;
   }
   private los(a: Vec, b: Vec): boolean {
+    if (this.sandbox) return true;
     if (this.scenario.lineOfSight) return this.scenario.lineOfSight(a, b);
     return !OBSTACLES.some((o) => {
       let near = 0,
@@ -597,11 +639,11 @@ export class Run {
       );
       for (const m of [...s.monsters])
         if (
-          Math.abs(terrainHeight(s.player) + s.player.y - terrainHeight(m)) <
+          Math.abs(this.surfaceHeight(s.player) + s.player.y - this.surfaceHeight(m)) <
             3 &&
           Math.hypot(
             distance(s.player, m),
-            terrainHeight(s.player) + s.player.y - terrainHeight(m),
+            this.surfaceHeight(s.player) + s.player.y - this.surfaceHeight(m),
           ) < 4 &&
           Math.cos(bearing(s.player, m) - s.player.heading) > 0.25 &&
           this.los(s.player, m)
@@ -958,7 +1000,7 @@ export class Run {
         id: this.id("shot"),
         x: from.x,
         z: from.z,
-        y: terrainHeight(from) + (owner === "player" ? s.player.y : 0) + 1.15,
+        y: this.surfaceHeight(from) + (owner === "player" ? s.player.y : 0) + 1.15,
         vx: Math.sin(angle) * Math.cos(pitch) * 85,
         vy: Math.sin(pitch) * 85,
         vz: Math.cos(angle) * Math.cos(pitch) * 85,
@@ -1066,7 +1108,7 @@ export class Run {
     }
     if (m.health <= 0) {
       const previousDrops = s.drops.length;
-      killDrops(s, m, this.random);
+      if (!this.sandbox) killDrops(s, m, this.random);
       for (const drop of s.drops.slice(previousDrops))
         Object.assign(drop, this.stable(drop));
       s.monsters = s.monsters.filter((other) => other.id !== m.id);
@@ -1075,6 +1117,7 @@ export class Run {
   }
 
   private hurt(damage: number): void {
+    if (this.sandbox) return;
     const s = this.state;
     if (damage <= 0 || s.status !== "playing") return;
     s.player.health = Math.max(0, s.player.health - damage);
@@ -1197,6 +1240,10 @@ export class Run {
       const navigation = m as Monster & { roamGoal?: Vec; waypoint?: Vec };
       m.staggerTime = Math.max(0, m.staggerTime - dt);
       if (m.staggerTime === 0) m.stagger = 0;
+      if (this.sandbox) {
+        m.recovery = Math.max(0, m.recovery - dt);
+        continue;
+      }
       if (
         m.target &&
         m.target !== "player" &&
@@ -1366,7 +1413,7 @@ export class Run {
       p.traveled += distance(from, p);
       const [owner, branch, stage, pulse] = p.owner.split("|");
       const groundAttack = p.hostile && branch !== "spitter";
-      if (groundAttack) p.y = terrainHeight(p) + 1.15;
+      if (groundAttack) p.y = this.surfaceHeight(p) + 1.15;
       else {
         // Sample the swept path, not just its end, so shots cannot cross a ridge.
         const steps = Math.max(
@@ -1379,14 +1426,14 @@ export class Run {
             x: from.x + (p.x - from.x) * t,
             z: from.z + (p.z - from.z) * t,
           };
-          if (from.y + (p.y - from.y) * t <= terrainHeight(point) + p.radius) {
+          if (from.y + (p.y - from.y) * t <= this.surfaceHeight(point) + p.radius) {
             p.y = from.y + (p.y - from.y) * t;
             Object.assign(p, point);
             p.life = 0;
             break;
           }
         }
-        if (from.y <= terrainHeight(from) + p.radius) continue;
+        if (from.y <= this.surfaceHeight(from) + p.radius) continue;
       }
       if (branch === "Slug" && stage === "2" && previous < 8 && p.traveled >= 8)
         p.damage *= 1.3;
@@ -1403,7 +1450,7 @@ export class Run {
         const center = {
           ...target,
           y:
-            terrainHeight(target) +
+            this.surfaceHeight(target) +
             (target.id === "player" ? s.player.y : 0) +
             1.15,
         };
@@ -1596,7 +1643,7 @@ export class Run {
           live.spool,
           mounted.shots,
           Math.atan2(
-            terrainHeight(target) - terrainHeight(mounted),
+            this.surfaceHeight(target) - this.surfaceHeight(mounted),
             distance(mounted, target),
           ),
         );
@@ -1745,7 +1792,7 @@ export class Run {
       return;
     }
     // Victory priority belongs to the public update, not its integration substeps.
-    if (s.elapsed + dt >= 900 - 1e-8 && s.player.health > 0) {
+    if (!this.sandbox && s.elapsed + dt >= 900 - 1e-8 && s.player.health > 0) {
       s.elapsed = 900;
       this.finish("victory");
       return;
@@ -1758,9 +1805,9 @@ export class Run {
       this.combat(0, input);
       return;
     }
-    let remaining = Math.min(dt, 900 - s.elapsed);
+    let remaining = this.sandbox ? dt : Math.min(dt, 900 - s.elapsed);
     while (remaining > 1e-9 && s.status === "playing") {
-      let part = Math.min(0.02, remaining, 900 - s.elapsed);
+      let part = Math.min(0.02, remaining, this.sandbox ? Infinity : 900 - s.elapsed);
       const phaseEnd = PHASES[s.phase]?.end;
       if (phaseEnd && phaseEnd > s.elapsed + 1e-8)
         part = Math.min(part, phaseEnd - s.elapsed);
@@ -1774,7 +1821,7 @@ export class Run {
       s.elapsed += part;
       remaining -= part;
       // Timer priority is applied before any damage or catch outcome in this tick.
-      if (s.elapsed >= 900 - 1e-8) {
+      if (!this.sandbox && s.elapsed >= 900 - 1e-8) {
         s.elapsed = 900;
         this.finish("victory");
         break;
@@ -1785,7 +1832,9 @@ export class Run {
       s.rodCooldown = Math.max(0, s.rodCooldown - world);
       this.combat(world, input);
       this.fishing(world, input);
-      this.detect();
+      if (!this.sandbox) {
+        this.detect();
+      }
       this.monsters(world);
       this.defenders(world);
       this.projectiles(world);
@@ -1793,7 +1842,14 @@ export class Run {
         this.hurt(this.scenario.damage(s, world));
       if (s.status !== "playing") break;
       this.commitments(world);
-      this.director(part);
+      if (!this.sandbox) this.director(part);
+      else {
+        s.reserves = { pistol: 9999, rifle: 9999, shells: 9999 };
+        for (const role of Object.keys(MONSTERS) as Role[]) {
+          if (!s.monsters.some(m => m.role === role))
+            s.monsters.push(this.sandboxTarget(role));
+        }
+      }
       if (s.mode === "drawing" || s.mode === "returning") {
         s.transition += part;
         if (
